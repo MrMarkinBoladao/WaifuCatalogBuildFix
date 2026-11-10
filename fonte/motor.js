@@ -15,10 +15,12 @@
  *  - Talents e Defenses repetidos: a cópia a mais devolve o preço de lista, como no Interactive.
  *  - DRX start (Danger Rating X), pelas regras do Interactive: em vez do budget, quatro verbas (Heritage 400,
  *    Catch-a-Ride 545, Demiplanes & Dungeons 500, outros perks oficiais 600); origem, uma binding básica, os Lures
- *    básicos, os Talents básicos, as duas compras de cada Defense e a companion de tier X ou Y saem de graça. O que
- *    sobra vai para a conta normal e só pode ser usado 7 dias depois do fim da criação.
+ *    básicos, os Talents básicos, as duas compras de cada Defense e a companion de tier X ou Y saem de graça. A verba
+ *    de 600 é só para perks oficiais; a DLC de outros blocos sai do desconto de repetidos (ou da verba de 600, pela
+ *    escolha da aba Regras). O que sobra vai para a conta normal e só pode ser usado 7 dias depois do fim da criação.
  *  - Criação (chargen): quando ela fecha, a página guarda uma foto da build. Dali em diante, o que muda é comparado
- *    com a foto: o que só vale na criação vira aviso, e o que foi devolvido segue a regra de reembolso.
+ *    com a foto: o que só vale na criação vira aviso e, no DRX start, as verbas ficam como na foto, e o que veio
+ *    depois sai da conta normal.
  *
  * Tags de cada pessoa: vêm do personagem escolhido (banco do Interactive ou "Meus personagens"),
  * mais as marcadas à mão na build, menos as tiradas à mão. A conta guarda só a diferença, então
@@ -133,22 +135,26 @@
     { chave: 'outros', nome: 'Outros perks oficiais', ingles: 'Other official perks', total: 600 },
   ]
   const TOTAL_DRX = VERBAS_DRX.reduce((a, v) => a + v.total, 0)
-  // Blocos do texto que têm verba própria. O resto (Bindings, Lures, Talents, Misc Perks…) sai da verba de 600.
+  // Blocos do texto com verba própria. A regra dessas três não diz "oficial", então elas cobrem DLC também.
+  // Os outros blocos de compra saem da verba de 600, que é só para perks oficiais.
   const VERBA_DO_BLOCO = { Heritage: 'heritage', Rides: 'rides', 'Home Perks': 'casa' }
-  // De graça no DRX start: os Talents básicos (os 16 primeiros do Interactive) e os Lures básicos (os cinco Sensory
-  // Lures do documento). A lista de bindings básicas vale quando o arquivo de dados não tem a dele.
+  const BLOCOS_DE_COMPRA = ['Bindings', 'Lures', 'Other Controls', 'Talents', 'Defenses', 'Misc Perks', 'Generic Waifu Perks', 'Waifu Perks', 'Orbs', 'Patron']
+  // De graça no DRX start: os Talents básicos (os 16 primeiros do Interactive) e os Lures básicos (os cinco Sensory Lures).
   const TALENTS_BASICOS = ['Body Tune-Up', 'Everlasting', 'Athletic', 'Martial', 'Wild', 'Science', 'Engineering', 'Aesthetic',
     'Communication', 'Performance', 'Soul', 'Blessed', 'Land', 'Psychic', 'Covert', 'Administrative']
   const LURES_BASICOS = ['Sticky Fingers', 'Faerie Feast', 'Potpourri', 'Alluring Whisper', 'Love Spot']
-  const BINDINGS_BASICAS = ['Company Stamp', 'Seal of Approval', 'Mystic Tattoo', 'Tempest Jewelry', 'Shroud of Power', 'Hypnosis App', 'Tantric Arts', 'Alterzelu Symbiote']
-  // Opções de Intensity que o Interactive não deixa junto do DRX start.
-  const NAO_COMBINA_DRX = ["Couple's Account (Cooperative)", 'Cash Still Rules', 'Wage Slave', 'With A Little Help From My Friends (Cooperative)', 'With A Little Help From My Friends(Cooperative)']
-  // Perks que só se compram na criação, quando o arquivo de dados não diz.
-  const SO_NA_CRIACAO = ['Memoria', 'Yoink', 'Worlds Apart']
-  // Reembolso depois da criação (Services: Refund): origem e Heritage não voltam; Rides e companions voltam inteiras
-  // em até duas semanas; o resto volta por 80% do preço pago.
-  const SEM_REEMBOLSO = ['Heritage']
-  const REEMBOLSO_POR_PRAZO = ['Rides']
+  // A raiz de cada árvore de binding (referencia/bindings/regras-gerais.md). Só a raiz de uma árvore sai de graça;
+  // na do Mystic Tattoo, a raiz tem duas peças, o Seal of Approval e a Mystic Tattoo.
+  const RAIZES_BINDING = [['Company Stamp'], ['Seal of Approval', 'Mystic Tattoo'], ['Tempest Jewelry'], ['Shroud of Power'],
+    ['Hypnosis App'], ['Tantric Arts'], ['Alterzelu Symbiote'], ['Tormentor’s Toolbox']]
+  // Opções de Intensity que o Interactive não deixa junto do DRX start (a Couple's Account já vem com ele).
+  const NAO_COMBINA_DRX = ["Couple's Account (Cooperative)", 'Cash Still Rules', 'Wage Slave', 'With A Little Help From My Friends (Cooperative)']
+  // Perks de tier imaginário que o DRX start aceita no lugar da companion de tier X ou Y.
+  const PERKS_COMPANION_DRX = ['Heavenbuilt Proto', 'Piece of Silver']
+  // Perks que só se compram no chargen, quando o arquivo de dados não diz.
+  const SO_NO_CHARGEN = ['Memoria', 'Yoink', 'Worlds Apart']
+  // Preço em créditos de cada tier no Interactive: os tiers imaginários custam IMG, e não créditos.
+  const PRECO_INTERACTIVE = [0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 0, 0, 0]
 
   // Nome completo da tag (como o Interactive escreve) -> sigla. Serve para importar personagens.
   const TAG_POR_NOME = Object.fromEntries([
@@ -197,7 +203,9 @@
     capturado: new RegExp(`^(.*?)\\(T${TT}\\)(?:\\{([^}]*)\\})?\\s+from\\b\\s?(.*)$`),
     mod: /^(.*?)\s*\[([-+]?\d+(?:\.\d+)?)\]$/,
     casal: /^Couple.s Account \(Cooperative\)$/i,
-    marcaFerramenta: /^Couple.s Account: (?:only the more expensive origin|half price)|^Couple.s Account \(Cooperative\) — contractors|^Your SO\b.*(?:\((?:Possess|Substitute)\) of T|Walked-In as|'Extra' with|Dropped-In)|\(challenge bonus: /,
+    marcaFerramenta: /^Couple.s Account: (?:only the more expensive origin|half price)|^Couple.s Account \(Cooperative\) — contractors|^Your SO\b.*(?:\((?:Possess|Substitute)\) of T|Walked-In as|'Extra' with|Dropped-In)|\(challenge bonus: |^DRX start \(Danger Rating X\)|^DRX start: /,
+    // O bloco de resumo que a ferramenta escreve no fim: fecha o bloco de Mission Rewards.
+    resumoFerramenta: /^Couple.s Account \(Cooperative\) — contractors|^DRX start \(Danger Rating X\) — /,
     recompensa: /^[ \t]*([^[\];\n]+?)[ \t]*\[([^\]\n]*)\];/,
   }
 
@@ -301,8 +309,8 @@
         continue
       }
       if (modo === 'missoes') {
-        // O resumo da Couple's Account que esta ferramenta escreve no fim não é missão.
-        if (/^Couple.s Account \(Cooperative\) — contractors/.test(t)) { modo = null; L.marca = true; continue }
+        // Os resumos que esta ferramenta escreve no fim (Couple's Account, DRX start) não são missão.
+        if (RX.resumoFerramenta.test(t)) { modo = null; L.marca = true; continue }
         L.tipo = 'missao'
         continue
       }
@@ -448,8 +456,9 @@
       }
     }
     md.missoes = lerMissoes(linhas)
-    // Linhas de Mode também contam como Couple's Account no sistema antigo.
+    // Linhas de Mode também contam como Couple's Account e DRX start no sistema antigo (com Legacy Difficulty).
     if (!md.casal) md.casal = linhas.some(L => L.tipo === 'item' && L.secao === 'Mode' && RX.casal.test(L.titulo || ''))
+    if (!md.drx) md.drx = linhas.some(L => L.tipo === 'item' && L.secao === 'Mode' && /^DRX start$/i.test(String(L.titulo || '').trim()))
     // Waifu Perk e Power Swap saem sem sinal no Interactive; o saldo diz se é custo ou devolução.
     let ant = null
     for (const L of linhas) {
@@ -591,6 +600,8 @@
     const defenses = (dados && dados.defenses) || PRECO_DEFESA_PADRAO
     const challenges = listaChallenges(dados && dados.challenges)
     const challengePorNome = new Map(challenges.map(c => [normalizar(c.titulo), c]))
+    // Perks que só se compram no chargen: os marcados no arquivo de dados, mais a lista daqui.
+    const soNoChargen = new Set([...SO_NO_CHARGEN, ...((dados && dados.perks) || []).filter(p => p && p.cg).map(p => p.n)].map(normalizar))
 
     // Meus personagens: índice próprio, refeito a cada definirMeus().
     let meusPorId = new Map()
@@ -662,6 +673,7 @@
       meus() { return [...meusPorId.values()] },
       challenges() { return challenges },
       challenge(titulo) { return challengePorNome.get(normalizar(titulo)) || null },
+      soNoChargen(titulo) { return soNoChargen.has(normalizar(titulo)) },
       heritage(titulo, custo) {
         const lista = heritages.get(normalizar(titulo)) || []
         if (!lista.length) return null
@@ -848,11 +860,26 @@
     return [modelo.origemSO, ...modelo.comprados].filter(Boolean)
   }
 
+  // A companion que vem com o DRX start: a primeira de "Companions bought" de tier X ou Y, contando Power Swap e
+  // Waifu Perk que levam a X ou Y. O Interactive escreve X como T11 e Y como T12.
+  const tierImaginario = t => t === 11 || t === 12
+  const tierFinal = L => (L.perk && L.perk.tier) || (L.swap && L.swap.tier) || L.tier
+  function linhaCompanionDRX(modelo) {
+    return modelo.drx ? modelo.comprados.find(L => tierImaginario(tierFinal(L))) || null : null
+  }
+  // Quanto o Interactive cobrou por ela: X e Y custam IMG, e não crédito; levada a X ou Y por Power Swap, paga o tier de base.
+  function custoCompanionDRX(modelo, L) {
+    if (!L || !modelo.compradosCab) return 0
+    const total = modelo.compradosCab.valor
+    return modelo.comprados.length === 1 ? total : Math.min(total, PRECO_INTERACTIVE[L.tier] || 0)
+  }
+
   // linhaEscolhida: undefined = achar sozinho; null = preencher à mão; número = índice da linha.
   function pessoaSO(modelo, banco, linhaEscolhida) {
+    const drxL = linhaCompanionDRX(modelo)
     let L = null
     if (linhaEscolhida === undefined) {
-      L = modelo.origemSO || modelo.comprados.find(x => /^Your SO\b/i.test(x.nome)) || modelo.comprados.find(x => x.metodo === 'unbound') || null
+      L = modelo.origemSO || modelo.comprados.find(x => /^Your SO\b/i.test(x.nome)) || drxL || modelo.comprados.find(x => x.metodo === 'unbound') || null
     }
     else if (linhaEscolhida != null) {
       const X = modelo.linhas[linhaEscolhida]
@@ -873,9 +900,14 @@
     }
     semMexidas(so)
     if (!L || (!deOrigem && so.nome === 'Your SO' && so.tier <= 1)) so.tipoOrigem = 'Drop-In'
+    // No DRX start, a Couple's Account é com a companion de tier X ou Y, que vem de graça: ela não tem origem a pagar.
+    // Fica como Walk-In, como no DR X do documento; dá para trocar em Pessoas e tags.
+    so.drx = !!drxL && L === drxL
+    if (so.drx) so.tipoOrigem = 'Walk-In'
     so.custoOrigem = custoOrigemPadrao(so.tipoOrigem, so.tier)
     if (L) {
       if (deOrigem) so.cobrado = L.custo
+      else if (so.drx) so.cobrado = custoCompanionDRX(modelo, L)
       else {
         const total = modelo.compradosCab ? modelo.compradosCab.valor : 0
         const extras = (so.swap ? so.swap.custo : 0) + (so.perk ? so.perk.custo : 0)
@@ -928,7 +960,16 @@
         // Bônus dos challenges: 'intensity' = % do budget da build; 'legacy' = % do budget do DR na Intensity 1
         // (o número do card do Interactive); 'nenhum' = como o Interactive sem Legacy Difficulty.
         bonusChallenge: 'intensity', powerTripDobra: true,
+        // DRX start, DLC de blocos sem verba própria (Talents, Misc Perks…): 'duplicados' = paga com o desconto de
+        // Talents e Defenses repetidos, e o que sobra dele não vira crédito; 'verba' = sai da verba de 600, e os
+        // repetidos não contam, porque os Talents e as Defenses vieram de graça.
+        drxDlc: 'duplicados',
       },
+      // Chargen: encerrado = a build já saiu da criação. A foto é o texto da build no fim do chargen (e os challenges
+      // postos pela ferramenta): o que mudou depois é comparado com ela.
+      chargen: { encerrado: false, foto: null },
+      // DRX start: os 7 dias (168 horas) depois do chargen, que liberam as sobras das verbas, já passaram na história?
+      drx: { seteDias: false },
       c1: pessoaC1(modelo, banco),
       so: null,
       companions: [],
@@ -952,6 +993,9 @@
         dr: Number.isInteger(ch.dr) ? ch.dr : null,
       }
       if (anterior.assinaturaMissoes === cfg.assinaturaMissoes && Array.isArray(anterior.missoes)) cfg.missoes = copiarMissoes(anterior.missoes)
+      const cg = anterior.chargen
+      if (cg && typeof cg === 'object') cfg.chargen = { encerrado: !!cg.encerrado, foto: limparFoto(cg.foto) }
+      if (anterior.drx && typeof anterior.drx === 'object') cfg.drx = { seteDias: !!anterior.drx.seteDias }
     }
     // Donos e modificadores do modo anterior só valem se o modo (casal ou não) não mudou.
     const mesmoModo = !!anterior && !!anterior.casal === !!cfg.casal
@@ -1188,6 +1232,7 @@
   }
 
   function descricaoOrigem(p) {
+    if (p.drx) return `the DRX start companion (T${tierTxt(tier1a(p))}), who came free with DRX start`
     const base = p.tipoOrigem === 'Drop-In' ? 'Drop-In' : `${p.tipoOrigem} of T${tierTxt(p.tier)}`
     const t1a = tier1a(p)
     if (p.perk && t1a !== p.tier) return `${base} (T${tierTxt(t1a)} with Waifu Perk ${p.perk.titulo})`
@@ -1212,6 +1257,10 @@
     const mexeuTags = todas.some(p => (p.tagsMais || []).length || (p.tagsMenos || []).length || p.meu)
     const mexeuArq = todas.slice(0, casal ? 2 : 1).some(p => (p.arqMais || []).length || (p.arqMenos || []).length || (p.meu && (p.arquetipos || []).length))
     const nomeDe = id => (id === 'so' ? (so && so.nome) || 'SO' : c1.nome || 'Contractor 1')
+    // Chargen encerrado: a build do fim do chargen (a foto) fica de referência para o que veio depois.
+    const chargen = cfg.chargen || {}
+    const fechado = !!chargen.encerrado
+    const foto = fechado ? lerFoto(chargen.foto, cfg, banco) : null
 
     if (modelo.jaCorrigido) avisos.push({ nivel: 'erro', texto: 'Este texto já passou por esta ferramenta. Cole o texto original do Interactive ("Copy Text of Build"), senão as correções entram duas vezes.' })
     if (banco.semDados) avisos.push({ nivel: 'aviso', texto: 'O arquivo dados/interactive-dados.js não carregou. Sem ele não dá para saber a árvore de cada heritage nem as tags dos personagens: marque as tags à mão.' })
@@ -1224,13 +1273,22 @@
         : 'O texto corrigido refaz o saldo pelo custo escrito na linha. Se a diferença é um custo que o texto não mostra, ligue "Manter as diferenças que o texto não explica".'
       avisos.push({ nivel: 'erro', texto: `A conta não fecha em "${e.linha.raw.trim()}": o saldo devia ser [${fmt(e.esperado)}], mas o texto mostra [${fmt(e.mostrado)}] (diferença de ${comSinal(e.mostrado - e.esperado)}). ${como}` })
     }
-    if (modelo.drx) avisos.push({ nivel: 'info', texto: 'Build de DRX start: as verbas do DRX fecham à mão, e o Interactive não dá Defense Rebates nesse modo.' })
     if (modelo.conferenciaSaldos.erros.length > 8) avisos.push({ nivel: 'erro', texto: `Mais ${modelo.conferenciaSaldos.erros.length - 8} linhas com o saldo errado.` })
-    if (modelo.intensidade != null && modelo.opcoesInt.length) {
+    // O DRX start trava a Intensity em 10: o Interactive não soma a linha "DRX start 10" à base.
+    if (modelo.drx) {
+      if (modelo.intensidade != null && Math.abs(modelo.intensidade - 10) > 0.01) avisos.push({ nivel: 'aviso', texto: `Intensity: o cabeçalho diz [${fmt(modelo.intensidade)}], mas o DRX start trava a Intensity em 10.` })
+    }
+    else if (modelo.intensidade != null && modelo.opcoesInt.length) {
       const soma = 1 + modelo.opcoesInt.reduce((a, L) => a + L.valor, 0)
       if (Math.abs(soma - modelo.intensidade) > 0.01) avisos.push({ nivel: 'erro', texto: `Intensity: o cabeçalho diz [${fmt(modelo.intensidade)}], mas 1 + a soma das cláusulas dá ${fmt(soma)}.` })
     }
-    if (modelo.budget != null && (modelo.intensidade != null || modelo.legacy)) {
+    if (modelo.drx) {
+      const dr = drDaBuild(modelo)
+      const tabela = modelo.budget != null ? ` O "Starting budget ${fmt(modelo.budget)}" do texto é só o número da tabela${dr ? ` (${modelo.mundo || 'o mundo'} é DR ${dr} na Intensity 10)` : ''} e não entra na conta.` : ''
+      avisos.push({ nivel: 'info', texto: `DRX start: a build começa em Danger Rating X (o DR 11 do Interactive), sem budget inicial. As verbas da criação são Heritage 400, Catch-a-Ride 545, Demiplanes & Dungeons 500 e 600 para os outros perks oficiais.${tabela}` })
+      avisos.push({ nivel: 'info', texto: 'DRX start: captura e venda ficam travadas nos valores da Intensity 10, e não há Defense Rebates, porque as Defenses já vêm de graça.' })
+    }
+    else if (modelo.budget != null && (modelo.intensidade != null || modelo.legacy)) {
       const I = intensidadeDoBudget(modelo)
       const dr = drDaBuild(modelo)
       if (dr) avisos.push({ nivel: 'info', texto: `Budget ${fmt(modelo.budget)} na Intensity ${fmt(I)}${modelo.legacy ? ' (Legacy Difficulty usa a linha 1)' : ''}: mundo de DR ${dr}, pela tabela do Interactive.` })
@@ -1338,7 +1396,7 @@
     if (['Possess', 'Substitute'].includes(c1.tipoOrigem) && c1.personagem == null && !(c1.tagsDef || []).length) semTags.push(c1.nome)
     for (const c of cfg.companions) if (!c.vendido && c.personagem == null && !(c.tagsDef || []).length) semTags.push(c.nome)
     if (casal && so.linha != null && so.personagem == null && !(so.tagsDef || []).length && so.tipoOrigem !== 'Drop-In') semTags.push(so.nome)
-    if (semTags.length && modelo.defenses.length) avisos.push({ nivel: 'aviso', texto: `Não achei ${semTags.join(', ')} no banco do Interactive nem em Meus personagens. Crie ou importe o personagem em Meus personagens, ou marque as tags de Defense à mão; senão os Defense Rebates dessas pessoas ficam de fora.` })
+    if (semTags.length && modelo.defenses.length && !rebatesDesligados) avisos.push({ nivel: 'aviso', texto: `Não achei ${semTags.join(', ')} no banco do Interactive nem em Meus personagens. Crie ou importe o personagem em Meus personagens, ou marque as tags de Defense à mão; senão os Defense Rebates dessas pessoas ficam de fora.` })
 
     // Tags e arquétipos marcados à mão que mudam a conta: para ninguém ganhar desconto sem querer.
     const maoDef = []
@@ -1358,6 +1416,34 @@
     if (maoArq.length) avisos.push({ nivel: 'aviso', texto: `Arquétipo marcado à mão nesta build: ${maoArq.join('; ')}. Dá o desconto de arquétipo nessa árvore; só vale se a origem combina com ela.` })
     const deMeus = todas.filter(p => p.meu && (p.tagsDef || []).some(t => { const d = rebCom.porDefesa[TAG_DEFESA[t]]; return d && d.quem.some(x => x.id === p.id) }))
     if (deMeus.length) avisos.push({ nivel: 'info', texto: `Tags de Meus personagens (marcadas por você) entram nos Defense Rebates: ${deMeus.map(p => p.nome).join(', ')}.` })
+
+    // ============================================================ DRX start e chargen
+    // A heritage, para a verba dela: todas as cópias, menos o desconto de arquétipo e a metade da Couple's Account.
+    const extrasDRX = {
+      heritageBruto: arred(infoHeritage.reduce((a, l) => a + l.copias.reduce((s, c) => s + c.custo, 0), 0)),
+      descArq: usarArq ? arqRecalc : arqTexto,
+      metadeCasal: casal ? arred(infoHeritage.reduce((a, l) => a + l.copias.reduce((s, c) => s + (c.metade ? c.meia || 0 : 0), 0), 0)) : 0,
+      repetidos: arred((usarTal ? rep.talents : talTexto) + (usarDef ? rep.defenses : defTexto)),
+    }
+    const drxAgora = modelo.drx ? contasDRX(modelo, op, extrasDRX, c1) : null
+    // Com o chargen encerrado, as verbas são as da foto: o que veio depois sai da conta normal.
+    const drxFoto = foto && foto.res.drx
+    const drx = drxAgora && drxFoto ? { ...drxFoto, compras: aplicarGratisDaFoto(drxAgora.compras, drxFoto.gratisPorChave) } : drxAgora
+    const seteDias = !!(cfg.drx && cfg.drx.seteDias)
+    const difChargen = foto ? diferencaChargen(modelo, foto.modelo, cfg, foto.cfg) : null
+    if (difChargen) avisosChargen(difChargen, banco, avisos, drx)
+    const depoisDoChargen = difChargen ? [
+      ...difChargen.depois.filter(x => x.custo > 0).map(x => ({ titulo: x.titulo, custo: x.custo })),
+      ...(difChargen.companions.custo > 0 ? [{ titulo: `companions (${difChargen.companions.novas.map(L => L.nome).join(', ') || 'more copies'})`, custo: difChargen.companions.custo }] : []),
+    ] : []
+    if (drx) {
+      for (const a of drx.avisos) avisos.push(a)
+      if (casal && !so.drx) avisos.push({ nivel: 'aviso', texto: `No DRX start, a Couple's Account é com a companion de tier X ou Y${drx.companion && !drx.companion.perkCompanion ? ` (${drx.companion.nome})` : ''}. Escolha ela como SO em Pessoas e tags.` })
+      if (!fechado) avisos.push({ nivel: 'info', texto: `Sobram ${fmt(drx.sobra)} das verbas do DRX start. Quando o chargen acabar, eles vão para a conta normal e só podem ser usados 7 dias (168 horas) depois. Marque "Chargen encerrado" quando a build estiver pronta.` })
+      else if (!seteDias) avisos.push({ nivel: 'info', texto: `Chargen encerrado: as sobras do DRX start (${fmt(drx.sobra)}) estão na conta normal, travadas até 7 dias (168 horas) depois do fim do chargen. Marque "7 dias passaram" quando isso acontecer na história.` })
+      else avisos.push({ nivel: 'info', texto: `As sobras do DRX start (${fmt(drx.sobra)}) já estão livres na conta normal: os 7 dias passaram.` })
+    }
+    const saldoTravado = drx && fechado && !seteDias ? drx.sobra : 0
 
     // ============================================================ texto corrigido
 
@@ -1381,9 +1467,12 @@
 
     let soTotal = 0; let c1Total = 0; let reembolso = 0
     if (casal) {
+      // No DRX start, o SO é a companion de tier X ou Y: ela veio comprada, de graça, e não tem origem.
+      const soDRX = !!(modelo.drx && so.drx)
       // 1. O SO sai de Companions bought e vira a origem do contractor 2.
       const linhaOrigemSO = ed.nova(`${textoOrigemSO(so, !op.resumoNoFim)} -${fmt(so.custoOrigem || 0)}`, -(so.custoOrigem || 0))
-      if (so.fonte === 'comprado' && so.linha != null && modelo.compradosCab) {
+      if (soDRX) mudancas.push(`${so.nome} é a companion do DRX start e a outra dona da Couple's Account: continua em "Companions bought" e conta como o contractor 2.`)
+      else if (so.fonte === 'comprado' && so.linha != null && modelo.compradosCab) {
         ed.remover(so.linha)
         const restantes = modelo.comprados.filter(L => L.i !== so.linha)
         const novoTotal = Math.max(0, arred(modelo.compradosCab.valor - (so.cobrado || 0)))
@@ -1401,12 +1490,12 @@
         avisos.push({ nivel: 'aviso', texto: 'Não achei o SO na build. Preencha o contractor 2 à mão (nome, origem, tier e preço da origem).' })
         blocoOrigem.push(linhaOrigemSO)
       }
-      if (so.swap) blocoOrigem.push(ed.nova(`Power Swap to ${so.swap.nome}(T${tierTxt(so.swap.tier)}) [${so.nome}] -${fmt(so.swap.custo || 0)}`, -(so.swap.custo || 0)))
-      if (so.perk) blocoOrigem.push(ed.nova(`Waifu Perk ${so.perk.titulo}(T${tierTxt(so.perk.tier)}) [${so.nome}] -${fmt(so.perk.custo || 0)}`, -(so.perk.custo || 0)))
+      if (so.swap && !soDRX) blocoOrigem.push(ed.nova(`Power Swap to ${so.swap.nome}(T${tierTxt(so.swap.tier)}) [${so.nome}] -${fmt(so.swap.custo || 0)}`, -(so.swap.custo || 0)))
+      if (so.perk && !soDRX) blocoOrigem.push(ed.nova(`Waifu Perk ${so.perk.titulo}(T${tierTxt(so.perk.tier)}) [${so.nome}] -${fmt(so.perk.custo || 0)}`, -(so.perk.custo || 0)))
 
-      // 2. Só a origem mais cara é paga.
-      c1Total = (c1.custoOrigem || 0) + (op.perkContaNaOrigem ? ((c1.swap && c1.swap.custo) || 0) + ((c1.perk && c1.perk.custo) || 0) : 0)
-      soTotal = (so.custoOrigem || 0) + (op.perkContaNaOrigem ? ((so.swap && so.swap.custo) || 0) + ((so.perk && so.perk.custo) || 0) : 0)
+      // 2. Só a origem mais cara é paga. No DRX start, a origem do contractor 1 já sai de graça.
+      c1Total = (modelo.drx ? 0 : (c1.custoOrigem || 0)) + (op.perkContaNaOrigem ? ((c1.swap && c1.swap.custo) || 0) + ((c1.perk && c1.perk.custo) || 0) : 0)
+      soTotal = soDRX ? 0 : (so.custoOrigem || 0) + (op.perkContaNaOrigem ? ((so.swap && so.swap.custo) || 0) + ((so.perk && so.perk.custo) || 0) : 0)
       if (op.origemMaisCara) {
         reembolso = Math.min(c1Total, soTotal)
         if (reembolso > 0) {
@@ -1461,9 +1550,10 @@
       mudancas.push(`Brindes da 2ª cópia de heritage somados: ${brindesAdicionados.map(b => `${b.nome} (${b.de})`).join(', ')}.`)
     }
 
-    // 7. Repetidos
-    if (usarTal) trocarLinhaDesconto(ed, modelo, 'descTalents', 'Discounted for duplicate talents', rep.talents, 'Talents', mudancas, talTexto, 'Talents repetidos')
-    if (usarDef) trocarLinhaDesconto(ed, modelo, 'descDefenses', 'Discounted for duplicate defenses', rep.defenses, 'Defenses', mudancas, defTexto, 'Defenses repetidas')
+    // 7. Repetidos (no DRX start com a DLC na verba de 600, os repetidos não contam: o passo 8b tira as linhas)
+    const semRepetidos = !!drx && drx.modo === 'verba'
+    if (usarTal && !semRepetidos) trocarLinhaDesconto(ed, modelo, 'descTalents', 'Discounted for duplicate talents', rep.talents, 'Talents', mudancas, talTexto, 'Talents repetidos')
+    if (usarDef && !semRepetidos) trocarLinhaDesconto(ed, modelo, 'descDefenses', 'Discounted for duplicate defenses', rep.defenses, 'Defenses', mudancas, defTexto, 'Defenses repetidas')
 
     // 8. Defense Rebates
     if (usarReb) {
@@ -1480,6 +1570,9 @@
         mudancas.push(`Defense Rebates: +${fmt(rebTexto)} → +${fmt(rebRecalc)}${doSO ? ` (${so.nome}: ${doSO})` : ''}.`)
       }
     }
+
+    // 8b. DRX start: as verbas no lugar do Starting budget e o que sai de graça
+    if (drx) aplicarDRX(ed, modelo, drx, mudancas)
 
     // 9. Specific credit modifiers
     if (modelo.modsCab) {
@@ -1499,6 +1592,9 @@
 
     // 9c. O nome escolhido para cada contractor no lugar de "You" e "Your SO"
     aplicarApelidos(ed, modelo, c1, so)
+
+    // 9d. Resumo do DRX start no fim: as verbas, o que sobrou e se as sobras já estão livres
+    if (drx) resumoDRX(ed, drx, { fechado, em: foto ? foto.em : '', seteDias, depois: depoisDoChargen })
 
     // 10. Resumo da Couple's Account no fim
     if (casal && op.resumoNoFim) {
@@ -1542,7 +1638,11 @@
     const saldoFinal = saldo == null ? 0 : saldo
     const saldoOriginal = modelo.conferenciaSaldos.saldoFinalMostrado
     if (saldoOriginal != null && Math.abs(saldoOriginal - saldoFinal) > 0.01) mudancas.push(`Saldo final: ${fmt(saldoOriginal)} → ${fmt(saldoFinal)}.`)
-    if (saldoFinal < 0) avisos.push({ nivel: 'erro', texto: `O saldo final ficou negativo (${fmt(saldoFinal)}): com saldo abaixo de zero ele não compra nada e entra em dívida.` })
+    if (saldoFinal < 0) {
+      if (saldoTravado > 0) avisos.push({ nivel: 'erro', texto: `O saldo livre ficou negativo (${fmt(saldoFinal)}): o que foi comprado depois do chargen passou do que entrou na conta normal, e as sobras do DRX start (${fmt(saldoTravado)}) só liberam depois dos 7 dias.` })
+      else if (drx && !fechado) avisos.push({ nivel: 'erro', texto: `O saldo final ficou negativo (${fmt(saldoFinal)}): faltou verba do DRX start para alguma compra (veja os avisos das verbas).` })
+      else avisos.push({ nivel: 'erro', texto: `O saldo final ficou negativo (${fmt(saldoFinal)}): com saldo abaixo de zero ele não compra nada e entra em dívida.` })
+    }
 
     const conferencia = [
       { chave: 'arquetipo', rotulo: 'Desconto de arquétipo', texto: arqTexto, recalculado: arqRecalc, usado: usarArq, travado: casal, detalhe: Object.values(arq).map(r => `${r.nome}: teto ${fmt(r.pool)}${r.usados.length ? `, ${r.usados.join(', ')} +${fmt(r.total)}` : ', nada descontado'}`).join(' · ') },
@@ -1564,6 +1664,10 @@
       missoes: resMissoes,
       sequito: montarSequito(modelo, cfg, rebCom),
       arvores: arvoresDaBuild(modelo, banco),
+      // DRX start: as verbas (as da foto, com o chargen encerrado), o que saiu de graça e o que está travado.
+      drx: drx ? { ...drx, fechado, seteDias, travado: saldoTravado, depois: depoisDoChargen, em: foto ? foto.em : '' } : null,
+      chargen: { encerrado: fechado, em: foto ? foto.em : '', foto: !!foto, depois: depoisDoChargen },
+      saldoTravado,
     }
   }
 
@@ -1639,7 +1743,8 @@
     const metodo = op.bonusChallenge || 'intensity'
     const cc = cfg.challenges || { adicionados: [], semBonus: [], dr: null }
     const drBuild = drDaBuild(modelo)
-    const dr = cc.dr || drBuild
+    // O DRX start põe a build no DR 11, qualquer que seja o mundo.
+    const dr = cc.dr || (modelo.drx ? 11 : drBuild)
     const missoes = cfg.missoes || copiarMissoes(modelo.missoes)
     // Bônus lançado à mão como missão ("Power Trip in Challenges"): vira o bônus do próprio challenge.
     const convertidas = metodo === 'nenhum' ? [] : missoes.filter((m) => { const c = banco.challenge(m.titulo); return !!(c && c.bonus > 0 && creditosDaMissao(m) > 0) })
@@ -1656,7 +1761,8 @@
     const semBonus = new Set((cc.semBonus || []).map(normalizar))
     const comBonus = ativos.filter(a => a.info && a.info.bonus > 0 && !semBonus.has(normalizar(a.titulo)))
     const baseLeg = dr ? budgetLegado(dr) : null
-    const base0 = metodo === 'legacy' ? baseLeg : modelo.budget
+    // No DR 11 não há budget inicial, então no DRX start os challenges não dão bônus em créditos.
+    const base0 = modelo.drx ? null : (metodo === 'legacy' ? baseLeg : modelo.budget)
     const pt = comBonus.find(a => normalizar(a.titulo) === 'power trip')
     const dobra = !!(pt && op.powerTripDobra && base0 != null)
     const baseOutros = base0 != null ? arred(base0 * (dobra ? 1 + pt.info.bonus : 1)) : null
@@ -1712,11 +1818,12 @@
       if (falta.length) avisos.push({ nivel: 'erro', texto: `${c.titulo} pede ${falta.join(', ')}, que não está na build.` })
       if (normalizar(c.titulo) === 'glass cannon' && modelo.defenses.length) avisos.push({ nivel: 'aviso', texto: 'Glass Cannon tira todas as Defenses da Company, e a build compra Defenses.' })
     }
-    if (metodo === 'legacy' && comBonus.length && base0 == null) avisos.push({ nivel: 'aviso', texto: 'Para os valores legados, escolha o DR do mundo na aba Challenges: não achei o DR pelo budget.' })
+    if (modelo.drx && comBonus.length && metodo !== 'nenhum') avisos.push({ nivel: 'info', texto: `DRX start: a build é DR 11 e não tem budget inicial, então ${comBonus.map(a => a.titulo).join(', ')} não dá bônus em créditos.` })
+    else if (metodo === 'legacy' && comBonus.length && base0 == null) avisos.push({ nivel: 'aviso', texto: 'Para os valores legados, escolha o DR do mundo na aba Challenges: não achei o DR pelo budget.' })
     if (metodo === 'nenhum' && comBonus.length) avisos.push({ nivel: 'info', texto: `Bônus de challenge desligado (aba Challenges): ${comBonus.map(a => a.titulo).join(', ')} ficam sem créditos, como no Interactive sem Legacy Difficulty.` })
 
     return {
-      metodo, dr, drBuild, base: base0, baseOutros, baseLegado: baseLeg, budget: modelo.budget, dobra,
+      metodo, dr, drBuild, drx: !!modelo.drx, base: base0, baseOutros, baseLegado: baseLeg, budget: modelo.budget, dobra,
       total: arred(ativos.reduce((s, a) => s + a.valor, 0)),
       convertidas,
       lista: ativos.map(a => ({ titulo: a.titulo, origem: a.origem, conhecido: !!a.info, bonus: a.bonus, aplicado: a.aplicado, base: a.base, valor: a.valor })),
@@ -1727,6 +1834,7 @@
   // Account fica de fora: na conta ele é o contractor 2.
   function montarSequito(modelo, cfg, rebates) {
     const soLinha = cfg.casal && cfg.so && cfg.so.fonte === 'comprado' ? cfg.so.linha : null
+    const drxL = linhaCompanionDRX(modelo)
     const membros = [...modelo.comprados, ...modelo.capturados].filter(L => L.i !== soLinha).map((L) => {
       const metodo = String(L.metodo || '').trim().toLowerCase() || 'buy'
       const papel = String(L.papel || '').trim() || 'Companion'
@@ -1736,6 +1844,7 @@
       return {
         id, linha: L.i, nome: L.nome, tier: L.tier, mundo: L.mundo || '', metodo, papel, vendido: !!L.vendido,
         swap: L.swap || null, perk: L.perk || null, ativo: !L.vendido && !FORA_DOS_REBATES.includes(papel), rebates: deu,
+        drx: !!drxL && L.i === drxL.i,
       }
     })
     const contar = f => membros.reduce((m, x) => { const k = f(x); m[k] = (m[k] || 0) + 1; return m }, {})
@@ -1783,6 +1892,349 @@
     if (Math.abs(total - totalTexto) > 0.01) mudancas.push(`Mission Rewards: ${comSinal(totalTexto)} → ${comSinal(total)}.`)
     else if (!igual && finais.length) mudancas.push('Mission Rewards: uma missão e uma recompensa por linha, para a LLM ler melhor.')
     return { lista: finais, total, totalTexto }
+  }
+
+  // ------------------------------------------------------------------ DRX start e chargen
+
+  const tirarCusto = s => String(s || '').replace(/\s+(?:free|[-+]?\d+(?:\.\d+)?)$/, '').trim()
+  const nomeEm = (L, nomes) => nomes.some(n => normalizar(n) === normalizar(L.titulo))
+  // "a, b e c" em português; em inglês, com a vírgula antes do "and" quando são três ou mais.
+  function juntarE(partes, e = 'and') {
+    if (partes.length < 2) return partes.join('')
+    const virgula = e === 'and' && partes.length > 2 ? ',' : ''
+    return `${partes.slice(0, -1).join(', ')}${virgula} ${e} ${partes[partes.length - 1]}`
+  }
+  // Linhas que são compras: os itens dos blocos de compra, a origem e a Waifu Perk ou o Power Swap dela.
+  function ehCompra(L) {
+    if (L.tipo === 'item') return !!(VERBA_DO_BLOCO[L.secao] || BLOCOS_DE_COMPRA.includes(L.secao))
+    return L.tipo === 'origem' || L.tipo === 'powerSwap' || L.tipo === 'waifuPerkOrigem'
+  }
+  // A chave de uma compra, para achar a mesma compra na foto do chargen.
+  function chaveCompra(L) {
+    if (L.tipo === 'origem' || L.tipo === 'powerSwap' || L.tipo === 'waifuPerkOrigem') return L.tipo
+    if (L.tipo === 'comprado') return `companion|${normalizar(L.nome)}|${L.tier}`
+    return `${L.secao}|${normalizar(L.titulo)}|${normalizar(L.complexo)}`
+  }
+  // O nome da compra nas listas: com a escolha ("Dragon Heart[Metal]"), mas sem a lista de alvos ("[You as Tatsumi, Chiyo]").
+  function rotuloCompra(L) {
+    if (L.tipo === 'item') return /,| as /.test(L.complexo || '') ? L.titulo : `${L.titulo}${L.complexo}`
+    if (L.tipo === 'origem') return 'origin'
+    return L.tipo === 'powerSwap' ? `Power Swap to ${L.nome}` : `Waifu Perk ${L.titulo}`
+  }
+  function challengeSoNoChargen(c) { return !!(c && /chargen only/i.test(String(c.special || ''))) }
+
+  // As contas do DRX start para uma build no chargen: em qual verba cai cada compra, o que sai de graça, quanto
+  // sobra de cada verba e o que fica sem verba.
+  //   verba de cada compra: 'heritage' | 'rides' | 'casa' | 'outros' | 'fora' (DLC de bloco sem verba própria)
+  //   extras: { heritageBruto, descArq, metadeCasal, repetidos }, que a conta de heritage e de repetidos já fez.
+  function contasDRX(modelo, op, extras, c1) {
+    const modoVerba = op.drxDlc === 'verba'
+    const avisos = []
+    // A binding de graça: a raiz de uma árvore só, a de preço maior entre as que a build tem.
+    const raizes = []
+    for (const L of modelo.linhas) {
+      if (L.tipo !== 'item' || L.secao !== 'Bindings' || L.dlc) continue
+      const arvore = RAIZES_BINDING.findIndex(r => nomeEm(L, r))
+      if (arvore >= 0) raizes.push({ L, arvore })
+    }
+    const somaArvore = a => raizes.filter(x => x.arvore === a).reduce((s, x) => s + x.L.custo, 0)
+    let arvoreGratis = -1
+    for (const x of raizes) if (arvoreGratis < 0 || somaArvore(x.arvore) > somaArvore(arvoreGratis)) arvoreGratis = x.arvore
+
+    const compras = []
+    for (const L of modelo.linhas) {
+      if (!ehCompra(L)) continue
+      const c = { L, chave: chaveCompra(L), titulo: rotuloCompra(L), secao: L.tipo === 'item' ? L.secao : 'Origin', custo: L.custo || 0, gratis: 0, motivo: null, verba: null, dlc: !!L.dlc }
+      if (L.tipo === 'origem') c.motivo = 'origem'
+      else if (L.tipo !== 'item') c.verba = 'outros'
+      else if (VERBA_DO_BLOCO[L.secao]) c.verba = VERBA_DO_BLOCO[L.secao]
+      else {
+        // A verba de 600 é só para perks oficiais; Patron é DLC.
+        c.verba = (L.dlc || L.secao === 'Patron') && !modoVerba ? 'fora' : 'outros'
+        if (L.secao === 'Bindings' && raizes.some(x => x.L === L && x.arvore === arvoreGratis)) c.motivo = 'binding'
+        else if (L.secao === 'Lures' && !L.dlc && nomeEm(L, LURES_BASICOS)) c.motivo = 'lure'
+        else if (L.secao === 'Talents' && !L.dlc && nomeEm(L, TALENTS_BASICOS)) c.motivo = 'talent'
+        else if (L.secao === 'Defenses' && !L.dlc) c.motivo = 'defense'
+      }
+      if (c.motivo) c.gratis = c.custo
+      compras.push(c)
+    }
+    // A companion do DRX start, que também vem de graça.
+    const linhaComp = linhaCompanionDRX(modelo)
+    const perkComp = linhaComp ? null : (modelo.linhas.find(L => L.tipo === 'item' && nomeEm(L, PERKS_COMPANION_DRX)) || null)
+    const custoComp = linhaComp ? custoCompanionDRX(modelo, linhaComp) : 0
+    if (linhaComp) compras.push({ L: linhaComp, chave: chaveCompra(linhaComp), titulo: linhaComp.nome, secao: 'Companions bought', custo: custoComp, gratis: custoComp, motivo: 'companion', verba: null, dlc: false })
+    const companion = linhaComp
+      ? { nome: linhaComp.nome, tier: tierFinal(linhaComp), tierBase: linhaComp.tier, mundo: linhaComp.mundo || '', metodo: linhaComp.metodo, custo: custoComp, linha: linhaComp.i, swap: linhaComp.swap || null, perk: linhaComp.perk || null }
+      : (perkComp ? { nome: perkComp.titulo, perkCompanion: true, tier: null, mundo: '', custo: 0, linha: perkComp.i } : null)
+
+    // Quanto cada verba pagou.
+    const verbas = VERBAS_DRX.map(v => ({ ...v, gasto: 0, sobra: 0, excesso: 0, coberto: 0, itens: [] }))
+    const verba = k => verbas.find(v => v.chave === k)
+    const fora = { total: 0, coberto: 0, itens: [] }
+    for (const c of compras) {
+      const pago = arred(c.custo - c.gratis)
+      if (pago <= 0 || !c.verba) continue
+      const item = { titulo: c.titulo, custo: pago, dlc: c.dlc }
+      if (c.verba === 'fora') { fora.total = arred(fora.total + pago); fora.itens.push(item) }
+      else { const v = verba(c.verba); v.gasto = arred(v.gasto + pago); v.itens.push(item) }
+    }
+    // Heritage: as cópias (com a 2ª da Couple's Account), menos o desconto de arquétipo e a metade do preço.
+    const vh = verba('heritage')
+    vh.bruto = arred(extras.heritageBruto || 0)
+    vh.descArq = arred(extras.descArq || 0)
+    vh.metade = arred(extras.metadeCasal || 0)
+    vh.gasto = arred(Math.max(0, vh.bruto - vh.descArq - vh.metade))
+    for (const v of verbas) { v.sobra = arred(Math.max(0, v.total - v.gasto)); v.excesso = arred(Math.max(0, v.gasto - v.total)) }
+
+    // O desconto de Talents e Defenses repetidos paga a DLC sem verba e o que passou das verbas. O que sobra dele
+    // é desconto, e não crédito: não passa para a conta.
+    const repetidos = arred(extras.repetidos || 0)
+    const dup = { total: modoVerba ? 0 : repetidos, usado: 0, sobra: 0, tirado: modoVerba ? repetidos : 0 }
+    fora.coberto = arred(Math.min(dup.total, fora.total))
+    let resta = arred(dup.total - fora.coberto)
+    for (const v of verbas) { v.coberto = arred(Math.min(resta, v.excesso)); resta = arred(resta - v.coberto) }
+    dup.sobra = resta
+    dup.usado = arred(dup.total - resta)
+    // Outras companions na criação: nenhuma verba cobre companion.
+    const outras = modelo.comprados.filter(L => L !== linhaComp)
+    const custoOutras = arred(Math.max(0, (modelo.compradosCab ? modelo.compradosCab.valor : 0) - custoComp))
+    const sobra = arred(verbas.reduce((a, v) => a + v.sobra, 0))
+    const semVerba = arred(fora.total - fora.coberto + verbas.reduce((a, v) => a + v.excesso - v.coberto, 0) + custoOutras)
+
+    const gratisPorChave = {}
+    for (const c of compras) if (c.gratis > 0) gratisPorChave[c.chave] = arred((gratisPorChave[c.chave] || 0) + c.gratis)
+    const origem = compras.find(c => c.motivo === 'origem')
+    const gratis = {
+      origem: origem ? origem.custo : 0,
+      binding: compras.filter(c => c.motivo === 'binding').map(c => c.titulo),
+      lures: compras.filter(c => c.motivo === 'lure').map(c => c.titulo),
+      total: arred(compras.reduce((a, c) => a + c.gratis, 0)),
+    }
+
+    // --- Avisos das regras do DRX start
+    if (c1 && ['Possess', 'Substitute'].includes(c1.tipoOrigem) && c1.tier > 6) avisos.push({ nivel: 'erro', texto: `No DRX start, Possess e Substitute vão só até T6, e ${c1.nome} é T${tierTxt(c1.tier)}.` })
+    const t1a = c1 ? tier1a(c1) : 0
+    if (c1 && (c1.perk || c1.swap) && t1a > 6) avisos.push({ nivel: 'erro', texto: `No DRX start, Waifu Perk e Power Swap comprados para você na criação não podem passar do tier 6, e ${c1.perk ? `a Waifu Perk ${c1.perk.titulo}` : `o Power Swap para ${c1.swap.nome}`} leva a T${tierTxt(t1a)}.` })
+    if (!companion) avisos.push({ nivel: 'erro', texto: 'O DRX start pede uma companion de tier X ou Y (vale Power Swap para X ou Y, Heavenbuilt Proto ou Piece of Silver), e não achei nenhuma em "Companions bought".' })
+    else if (companion.perkCompanion) avisos.push({ nivel: 'info', texto: `A companion de tier imaginário do DRX start vem do ${companion.nome}.` })
+    const tierZ = modelo.comprados.filter(L => tierFinal(L) === 13)
+    if (!linhaComp && tierZ.length) avisos.push({ nivel: 'aviso', texto: `Tier Z não vale como a companion do DRX start: ${tierZ.map(L => L.nome).join(', ')}.` })
+    const outrasXY = outras.filter(L => tierImaginario(tierFinal(L)))
+    if (linhaComp && outrasXY.length) avisos.push({ nivel: 'aviso', texto: `Só uma companion de tier X ou Y vem com o DRX start (${linhaComp.nome}). ${outrasXY.map(L => `${L.nome} (T${tierTxt(tierFinal(L))})`).join(', ')} custam IMG à parte, e a ferramenta não conta IMG.` })
+    if (custoOutras > 0) avisos.push({ nivel: 'erro', texto: `No DRX start, a criação só traz a companion de tier X ou Y, e nenhuma verba cobre companion: ${outras.filter(L => !tierImaginario(tierFinal(L))).map(L => `${L.nome} (T${tierTxt(L.tier)})`).join(', ')} somam ${fmt(custoOutras)}. Compre depois do chargen, com a conta normal.` })
+    if (linhaComp) {
+      const inicio = normalizar(String(modelo.mundo || '').replace(/\s*\[.*$/, ''))
+      const natal = normalizar(linhaComp.mundo)
+      companion.mundoNatal = !!(inicio && natal && (inicio === natal || inicio.includes(natal) || natal.includes(inicio)))
+      if (companion.mundoNatal) avisos.push({ nivel: 'info', texto: `A build começa no mundo natal de ${linhaComp.nome} (${linhaComp.mundo}): no DRX start, o Yoink entra de graça.` })
+      else if (linhaComp.metodo === 'yoink') avisos.push({ nivel: 'aviso', texto: `${linhaComp.nome} está como [yoink], mas o DRX start só dá o Yoink de graça quando a build começa no mundo natal da companion (${linhaComp.mundo}).` })
+    }
+    const semEspaco = s => normalizar(s).replace(/\s+/g, '')
+    const proibidas = new Set(NAO_COMBINA_DRX.map(semEspaco))
+    const escolhidas = [...modelo.opcoesInt.map(L => L.nome), ...modelo.linhas.filter(L => L.tipo === 'item' && L.secao === 'Mode').map(L => L.titulo)]
+    for (const n of [...new Set(escolhidas.filter(n => proibidas.has(semEspaco(n))))]) {
+      avisos.push({ nivel: 'erro', texto: RX.casal.test(n.trim()) ? `${n} não se escolhe junto com o DRX start: ele já traz uma Couple's Account com a companion de tier X ou Y.` : `${n} não combina com o DRX start.` })
+    }
+    for (const v of verbas) {
+      if (v.excesso <= 0) continue
+      const falta = arred(v.excesso - v.coberto)
+      if (falta > 0) avisos.push({ nivel: 'erro', texto: `${v.nome}: ${fmt(v.gasto)} de ${fmt(v.total)}, passou ${fmt(v.excesso)} da verba do DRX start${v.coberto ? `, e o desconto de repetidos só cobre ${fmt(v.coberto)}` : ''}.` })
+      else avisos.push({ nivel: 'aviso', texto: `${v.nome}: ${fmt(v.gasto)} de ${fmt(v.total)}, passou ${fmt(v.excesso)} da verba do DRX start, e o desconto de Talents e Defenses repetidos cobre a diferença.` })
+    }
+    if (fora.total > 0) {
+      const falta = arred(fora.total - fora.coberto)
+      const itens = fora.itens.map(i => `${i.titulo} ${fmt(i.custo)}`).join(', ')
+      if (falta > 0) avisos.push({ nivel: 'erro', texto: `DLC sem verba própria (${itens}): ${fmt(fora.total)}. A verba de 600 é só para perks oficiais, e o desconto de Talents e Defenses repetidos (${fmt(dup.total)}) só cobre ${fmt(fora.coberto)}: faltam ${fmt(falta)}. Para pagar a DLC pela verba de 600, troque a escolha na aba Regras.` })
+      else avisos.push({ nivel: 'info', texto: `DLC sem verba própria (${itens}): ${fmt(fora.total)}, pagos pelo desconto de Talents e Defenses repetidos (${fmt(dup.total)}), porque a verba de 600 é só para perks oficiais.${dup.sobra > 0 ? ` Os ${fmt(dup.sobra)} que sobram do desconto não viram crédito.` : ''}` })
+    }
+    else if (dup.sobra > 0) avisos.push({ nivel: 'info', texto: `O desconto de Talents e Defenses repetidos (${fmt(dup.sobra)}) não tem DLC para pagar. É desconto, e não crédito: não passa para a conta.` })
+    if (dup.tirado > 0) avisos.push({ nivel: 'info', texto: `O desconto de Talents e Defenses repetidos (${fmt(dup.tirado)}) não conta: no DRX start eles vieram de graça (escolha da aba Regras).` })
+
+    return {
+      modo: modoVerba ? 'verba' : 'duplicados', verbas, sobra, fora, dup, semVerba, companion,
+      outras: { custo: custoOutras, nomes: outras.filter(L => !tierImaginario(tierFinal(L))).map(L => `${L.nome} (T${tierTxt(L.tier)})`) },
+      gratis, gratisPorChave, compras, avisos,
+    }
+  }
+
+  // Depois do chargen, só sai de graça o que saiu de graça na foto, até o mesmo valor: um Lure básico comprado
+  // depois, por exemplo, sai pelo preço normal.
+  function aplicarGratisDaFoto(compras, mapa) {
+    const resta = { ...(mapa || {}) }
+    return compras.map((c) => {
+      const g = arred(Math.min(c.custo, resta[c.chave] || 0))
+      if (g > 0) resta[c.chave] = arred(resta[c.chave] - g)
+      return { ...c, gratis: g }
+    })
+  }
+
+  // No texto: as verbas no lugar do Starting budget, as compras que saem de graça e, se a regra pede, sem repetidos.
+  function aplicarDRX(ed, modelo, drx, mudancas) {
+    const linhaVerbas = `DRX start (Danger Rating X): no starting budget. Chargen budgets: ${VERBAS_DRX.map(v => `${v.ingles} ${v.total}`).join(', ')} +${TOTAL_DRX}`
+    const B = modelo.linhas.find(L => L.tipo === 'budget')
+    if (B) {
+      ed.trocar(B.i, { tipo: 'drx', texto: linhaVerbas, delta: TOTAL_DRX, colchete: true })
+      mudancas.push(`DRX start: o "Starting budget ${fmt(B.valor)}" é só o número da tabela; no lugar dele entram as verbas da criação, ${TOTAL_DRX} ao todo.`)
+    }
+    else {
+      const M = modelo.linhas.find(L => L.tipo === 'mundo')
+      if (M) ed.depois(M.i, ed.nova(linhaVerbas, TOTAL_DRX))
+      else if (modelo.linhas.length) ed.antes(0, ed.nova(linhaVerbas, TOTAL_DRX))
+    }
+    const deGraca = []
+    for (const c of drx.compras) {
+      if (!(c.gratis > 0)) continue
+      const L = c.L
+      const resto = arred(c.custo - c.gratis)
+      if (L.tipo === 'origem') {
+        ed.trocar(L.i, { texto: `${tirarCusto(L.cabeca)} ${resto > 0 ? `-${fmt(resto)}` : 'free'}`, delta: -resto })
+        deGraca.push(`a origem (${fmt(c.gratis)})`)
+      }
+      else if (L.tipo === 'comprado') {
+        ed.depois(L.i, ed.nova(`DRX start: ${L.nome} is the DRX start companion, free +${fmt(c.gratis)}`, c.gratis))
+        deGraca.push(`${L.nome} (${fmt(c.gratis)})`)
+      }
+      else {
+        ed.trocar(L.i, { texto: montarItem({ ...L, custo: resto }), delta: -resto })
+        deGraca.push(`${c.titulo} (${fmt(c.gratis)})`)
+      }
+    }
+    if (deGraca.length) mudancas.push(`DRX start: ${deGraca.length > 1 ? 'saem' : 'sai'} de graça ${juntarE(deGraca, 'e')}, que o Interactive cobrava.`)
+    if (drx.modo === 'verba' && (modelo.descTalents || modelo.descDefenses)) {
+      for (const L of [modelo.descTalents, modelo.descDefenses].filter(Boolean)) ed.remover(L.i)
+      mudancas.push('DRX start: o desconto de Talents e Defenses repetidos sai, porque eles vieram de graça (escolha da aba Regras).')
+    }
+  }
+
+  // O resumo do DRX start no fim do texto: quanto cada verba gastou e o que sobrou. Com o chargen encerrado, as
+  // sobras ficam travadas na conta normal até os 7 dias passarem.
+  function resumoDRX(ed, drx, estado) {
+    const linhas = [ed.nova('', null, 'vazio')]
+    const quando = estado.em ? ` on ${String(estado.em).slice(0, 10)}` : ''
+    linhas.push(ed.nova(`DRX start (Danger Rating X) — chargen budgets${estado.fechado ? `, chargen closed${quando}` : ''}`, null))
+    for (const v of drx.verbas) {
+      let t = `${v.ingles}: ${fmt(v.gasto)} of ${fmt(v.total)} spent`
+      if (v.chave === 'heritage' && (v.descArq || v.metade)) {
+        const menos = [v.descArq ? `${fmt(v.descArq)} from the archetype discount` : '', v.metade ? `${fmt(v.metade)} from the Couple's Account half price` : ''].filter(Boolean)
+        t += ` (${fmt(v.bruto)} minus ${menos.join(' and ')})`
+      }
+      if (v.excesso > 0) t += `, ${fmt(v.excesso)} over${v.coberto >= v.excesso ? ', covered by the duplicate discounts' : (v.coberto ? `, ${fmt(v.coberto)} of it covered by the duplicate discounts` : '')}`
+      else t += `, ${fmt(v.sobra)} left`
+      linhas.push(ed.nova(t, null))
+    }
+    if (drx.fora.total > 0) {
+      const falta = arred(drx.fora.total - drx.fora.coberto)
+      const pago = falta > 0 ? `${fmt(drx.fora.coberto)} paid by the duplicate discounts and ${fmt(falta)} with no budget` : 'paid by the duplicate discounts'
+      linhas.push(ed.nova(`DLC with no budget of its own (${drx.fora.itens.map(i => `${i.titulo} ${fmt(i.custo)}`).join(', ')}): ${fmt(drx.fora.total)}, ${pago}`, null))
+    }
+    if (drx.dup.sobra > 0) linhas.push(ed.nova(`Duplicate discounts left unused (a discount, not credit, so it doesn't carry over) -${fmt(drx.dup.sobra)}`, -drx.dup.sobra))
+    if (drx.dup.tirado > 0) linhas.push(ed.nova('No duplicate discounts: the talents and defenses came free with DRX start.', null))
+    if (drx.outras.custo > 0) linhas.push(ed.nova(`Other companions bought in chargen, with no DRX budget: ${drx.outras.nomes.join(', ')} (${fmt(drx.outras.custo)})`, null))
+    const g = drx.gratis
+    const gratis = ['the origin']
+    if (g.binding.length) gratis.push(`the basic binding (${g.binding.join(', ')})`)
+    if (g.lures.length) gratis.push(`the basic lures (${g.lures.join(', ')})`)
+    gratis.push('the 16 basic talents', 'both purchases of every defense')
+    const c = drx.companion
+    if (c && c.perkCompanion) gratis.push(`${c.nome}, the imaginary-tier companion of DRX start`)
+    else if (c) gratis.push(`${c.nome} (T${tierTxt(c.tier)}${c.mundo ? `, ${c.mundo}` : ''}), the DRX start companion, who shares the Couple's Account`)
+    linhas.push(ed.nova(`Free with DRX start: ${juntarE(gratis)}.`, null))
+    if (estado.fechado && estado.depois.length) linhas.push(ed.nova(`Bought after chargen, with the regular account: ${estado.depois.map(x => `${x.titulo} ${fmt(x.custo)}`).join(', ')}`, null))
+    if (!estado.fechado) linhas.push(ed.nova(`Left in the DRX budgets: ${fmt(drx.sobra)}. When chargen ends, it goes to the regular account and can only be used after 7 days (168 hours).`, null))
+    else if (!estado.seteDias) { if (drx.sobra > 0) linhas.push(ed.nova(`DRX budget leftover, in the regular account but locked until 7 days (168 hours) after chargen -${fmt(drx.sobra)}`, -drx.sobra)) }
+    else linhas.push(ed.nova(`DRX budget leftover: ${fmt(drx.sobra)}, free to use in the regular account (the 7 days have passed).`, null))
+    ed.fim(...linhas)
+  }
+
+  // A foto do chargen guardada na configuração: o texto da build no fim do chargen e os challenges postos aqui.
+  function limparFoto(f) {
+    if (!f || typeof f !== 'object' || typeof f.texto !== 'string' || !f.texto.trim()) return null
+    return { texto: f.texto, em: typeof f.em === 'string' ? f.em : '', challenges: Array.isArray(f.challenges) ? f.challenges.filter(t => typeof t === 'string') : [] }
+  }
+
+  // A build do fim do chargen, com as escolhas de agora (tags, donos de heritage, regras), já calculada.
+  function lerFoto(f, cfg, banco) {
+    const fl = limparFoto(f)
+    if (!fl) return null
+    const modelo = analisar(fl.texto)
+    const base = JSON.parse(JSON.stringify({ ...cfg, chargen: { encerrado: false, foto: null } }))
+    const cfgFoto = configPadrao(modelo, banco, base)
+    cfgFoto.challenges.adicionados = fl.challenges.filter(t => !modelo.challenges.some(L => normalizar(L.titulo) === normalizar(t)))
+    return { modelo, cfg: cfgFoto, res: calcular(modelo, cfgFoto, banco), em: fl.em }
+  }
+
+  // O que mudou desde a foto do chargen: compras novas ou maiores, compras que saíram, e o que só vale no chargen.
+  function diferencaChargen(modelo, mFoto, cfg, cfgFoto) {
+    const somar = (m) => {
+      const r = new Map()
+      for (const L of m.linhas) {
+        if (!ehCompra(L)) continue
+        const k = chaveCompra(L)
+        const x = r.get(k) || { chave: k, titulo: rotuloCompra(L), secao: L.tipo === 'item' ? L.secao : 'Origin', custo: 0, L }
+        x.custo = arred(x.custo + (L.custo || 0))
+        r.set(k, x)
+      }
+      return r
+    }
+    const agora = somar(modelo)
+    const antes = somar(mFoto)
+    const depois = []
+    const sairam = []
+    for (const [k, x] of agora) {
+      const a = antes.get(k)
+      const dif = arred(x.custo - (a ? a.custo : 0))
+      if (!a) depois.push({ ...x, novo: true })
+      else if (dif > 0) depois.push({ ...x, custo: dif, novo: false })
+      else if (dif < 0) sairam.push({ ...x, custo: -dif })
+    }
+    for (const [k, a] of antes) if (!agora.has(k)) sairam.push({ ...a })
+    const idComp = L => `${normalizar(L.nome)}|${L.tier}`
+    const compAntes = new Set(mFoto.comprados.map(idComp))
+    const compAgora = new Set(modelo.comprados.map(idComp))
+    const totalComp = m => (m.compradosCab ? m.compradosCab.valor : 0)
+    const companions = {
+      custo: arred(totalComp(modelo) - totalComp(mFoto)),
+      novas: modelo.comprados.filter(L => !compAntes.has(idComp(L))),
+      sairam: mFoto.comprados.filter(L => !compAgora.has(idComp(L))),
+    }
+    // A recompra de Intensity (Buyback) é a única opção de Intensity que vale depois do chargen.
+    const opcoes = m => new Map(m.opcoesInt.filter(L => !/^buyback$/i.test(L.nome.trim())).map(L => [normalizar(L.nome), L]))
+    const oAgora = opcoes(modelo)
+    const oAntes = opcoes(mFoto)
+    const intensidade = {
+      novas: [...oAgora.values()].filter(L => !oAntes.has(normalizar(L.nome))),
+      sairam: [...oAntes.values()].filter(L => !oAgora.has(normalizar(L.nome))),
+      mudaram: [...oAgora.values()].filter(L => oAntes.has(normalizar(L.nome)) && Math.abs(oAntes.get(normalizar(L.nome)).valor - L.valor) > 0.001),
+    }
+    const origem = m => (m.origem ? tirarCusto(m.origem.cabeca) : '')
+    const challengesAntes = new Set([...mFoto.challenges.map(L => normalizar(L.titulo)), ...((cfgFoto && cfgFoto.challenges && cfgFoto.challenges.adicionados) || []).map(normalizar)])
+    const challengesNovos = [...modelo.challenges.map(L => L.titulo), ...((cfg.challenges && cfg.challenges.adicionados) || [])].filter(t => !challengesAntes.has(normalizar(t)))
+    return {
+      depois, sairam, companions, intensidade, challengesNovos,
+      origemMudou: origem(modelo) !== origem(mFoto), origemAntes: origem(mFoto),
+      drxNovo: !!modelo.drx && !mFoto.drx, drxSaiu: !modelo.drx && !!mFoto.drx,
+    }
+  }
+
+  // O que só vale no chargen e apareceu depois dele: o sistema anti-erro do chargen encerrado.
+  function avisosChargen(dif, banco, avisos, drx) {
+    const plural = (n, um, varios) => (n > 1 ? varios : um)
+    if (dif.drxNovo) avisos.push({ nivel: 'erro', texto: 'O DRX start só se escolhe no chargen, e não estava na build quando ele fechou.' })
+    if (dif.drxSaiu) avisos.push({ nivel: 'aviso', texto: 'O DRX start estava na build quando o chargen fechou e saiu depois. Ele não se desfaz depois do chargen: confira o texto.' })
+    if (dif.origemMudou) avisos.push({ nivel: 'aviso', texto: `A origem mudou depois do chargen (era "${dif.origemAntes || 'nenhuma'}"). A origem só se escolhe no chargen.` })
+    const ints = [...dif.intensidade.novas.map(L => `${L.nome} entrou`), ...dif.intensidade.sairam.map(L => `${L.nome} saiu`), ...dif.intensidade.mudaram.map(L => `${L.nome} mudou`)]
+    if (ints.length) avisos.push({ nivel: 'aviso', texto: `Intensity depois do chargen: ${ints.join('; ')}. As opções de Intensity só se escolhem no chargen; a exceção é a recompra (Buyback).` })
+    const perks = dif.depois.filter(x => x.novo && x.L.tipo === 'item' && banco.soNoChargen(x.L.titulo)).map(x => x.titulo)
+    if (perks.length) avisos.push({ nivel: 'aviso', texto: `${perks.join(', ')} ${plural(perks.length, 'só se compra no chargen, e entrou', 'só se compram no chargen, e entraram')} depois dele.` })
+    const chal = dif.challengesNovos.filter(t => challengeSoNoChargen(banco.challenge(t)))
+    if (chal.length) avisos.push({ nivel: 'aviso', texto: `${chal.join(', ')} ${plural(chal.length, 'é challenge só do chargen e entrou', 'são challenges só do chargen e entraram')} depois dele.` })
+    const yoink = dif.companions.novas.filter(L => String(L.metodo).toLowerCase() === 'yoink').map(L => L.nome)
+    if (yoink.length) avisos.push({ nivel: 'aviso', texto: `O Yoink só vale no chargen, e ${yoink.join(', ')} ${plural(yoink.length, 'entrou', 'entraram')} como [yoink] depois dele.` })
+    if (drx && (dif.sairam.length || dif.companions.sairam.length)) {
+      const itens = [...dif.sairam.map(x => x.titulo === 'origin' ? 'a origem' : x.titulo), ...dif.companions.sairam.map(L => L.nome)]
+      avisos.push({ nivel: 'aviso', texto: `Saiu depois do chargen: ${itens.join(', ')}. As verbas do DRX start não voltam, e o texto do Interactive devolve o preço cheio à conta normal. Pela regra de devolução, origem, Heritage e a companion do DRX start não têm reembolso; rides e companions voltam inteiros em até duas semanas, e o resto volta por 80%. Acerte a diferença em "Specific credit modifiers", no Interactive.` })
+    }
   }
 
   // Budget inicial do Interactive para cada DR, na Intensity dada.
@@ -1906,9 +2358,9 @@
     custoOrigemPadrao, chaveHeritage, chaveMod, budgetsPorDR, tier1a, poolArquetipo, tetoRebate, personagemDoNome,
     apelidoDe, quemDaLinha, nomeComApelido,
     novoIdMeu, registroDeObjeto, lerImportacao, mesclarMeus, backupMeus, registroDePessoa,
-    lerMissoes, creditosDaMissao, drDaBuild, budgetLegado,
+    lerMissoes, creditosDaMissao, drDaBuild, budgetLegado, challengeSoNoChargen, limparFoto,
     PRECO_TIER, TAG_DEFESA, DEFESA_TAG, TAG_ARQUETIPO, ARQUETIPOS, TIPOS_ORIGEM, CONDICAO_DEFESA, CHALLENGES_PADRAO,
-    METODOS_SEQUITO, PAPEIS_SEQUITO, VENDIDO_SEQUITO, FORA_DOS_REBATES,
+    METODOS_SEQUITO, PAPEIS_SEQUITO, VENDIDO_SEQUITO, FORA_DOS_REBATES, VERBAS_DRX, TOTAL_DRX,
     fmt, tierTxt, tierNum, precoTier, normalizar, semPrefixo, curtoDefesa,
   }
 })(typeof window !== 'undefined' ? window : globalThis)
