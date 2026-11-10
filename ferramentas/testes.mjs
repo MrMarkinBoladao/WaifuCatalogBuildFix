@@ -1,5 +1,5 @@
-// Testes do motor: node testes.mjs [pasta-com-builds-do-repositorio]
-// Roda a build de exemplo (Couple's Account) e confere as contas de cada build salva no repositório.
+// Testes do motor: node testes.mjs [pasta-com-builds]
+// Roda a build de exemplo (Couple's Account) e, se receber uma pasta, confere as contas de cada build .md dela.
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
@@ -21,8 +21,10 @@ function confere(nome, obtido, esperado) {
   if (!ok) falhas++
   console.log(`${ok ? 'ok  ' : 'FALHA'} ${nome}: ${JSON.stringify(obtido)}${ok ? '' : `  (esperado ${JSON.stringify(esperado)})`}`)
 }
-// Saldo do exemplo: 391 da Couple's Account + 480 do Good Luck Smiles on the Daring.
-const SALDO = 871
+// Saldo do exemplo: 227 da Couple's Account + 480 do Good Luck Smiles on the Daring.
+const SALDO = 707
+const SALDO_SEM_BONUS = 227
+const USAGI = 'Tsukino Usagi/Sailor Moon (anime)'
 function rodar(texto, ajuste) {
   const modelo = WCFix.analisar(texto)
   const cfg = WCFix.configPadrao(modelo, banco)
@@ -30,84 +32,85 @@ function rodar(texto, ajuste) {
   return { modelo, cfg, r: WCFix.calcular(modelo, cfg, banco) }
 }
 
-// 1. Exemplo do usuário
+// 1. A build de exemplo (fonte/exemplo.js)
 {
   const { modelo, cfg, r } = rodar(WC_EXEMPLO)
-  console.log('\n=== Exemplo: Rimuru Tempest + Elysia (SO) ===')
+  console.log('\n=== Exemplo: Natsu Dragneel (Power Swap para Acnologia) + Tsukino Usagi (SO) ===')
   confere('Couple\'s Account detectada', modelo.casal, true)
   confere('erros de saldo no texto original', modelo.conferenciaSaldos.erros.length, 0)
-  confere('contractor 1', [cfg.c1.nome, cfg.c1.tipoOrigem, cfg.c1.tier, WCFix.tier1a(cfg.c1)], ['Rimuru Tempest', 'Possess', 7, 9])
-  confere('SO', [cfg.so.nome, cfg.so.tier, cfg.so.custoOrigem, cfg.so.cobrado], ['Elysia', 9, 500, 500])
+  confere('contractor 1', [cfg.c1.nome, cfg.c1.tipoOrigem, cfg.c1.tier, WCFix.tier1a(cfg.c1)], ['Natsu Dragneel', 'Possess', 7, 8])
+  confere('SO', [cfg.so.nome, cfg.so.tier, cfg.so.custoOrigem, cfg.so.cobrado], [USAGI, 9, 500, 500])
   confere('árvore que o Interactive descontou', cfg.arvoreInferida, 'Dragon')
-  confere('donos', r.heritage.map(h => `${h.titulo}:${h.dono}`), ['Dragon Heart:c1', 'First Augmentation:so'])
-  confere('arquétipo Rimuru', r.arquetipos.c1.total, 48)
-  confere('arquétipo Elysia', r.arquetipos.so.total, 64)
-  confere('reembolso da origem', r.origens.reembolso, 500)
-  confere('rebates sem o SO (o Interactive deu +12)', r.rebates.semSO.total, 12)
-  confere('rebates com o SO', r.rebates.comSO.total, 14)
-  // 391 da Couple's Account + 480 do Good Luck Smiles on the Daring (50% do budget de 960).
-  confere('bônus do Good Luck Smiles on the Daring', r.challenges.lista.map(a => [a.titulo, a.valor]), [['100,000 years of cultivation', 0], ['Good Luck Smiles on the Daring', 480]])
+  confere('donos', r.heritage.map(h => `${h.titulo}:${h.dono}`), ['Dragon Heart:c1', 'Power Overwhelming:c1', 'Mahou Henshin:so'])
+  confere('arquétipo Natsu (T8 pelo Power Swap)', r.arquetipos.c1.total, 88)
+  confere('arquétipo Usagi', r.arquetipos.so.total, 64)
+  confere('reembolso da origem', r.origens.reembolso, 200)
+  confere('rebates sem o SO (o Interactive deu +24)', r.rebates.semSO.total, 24)
+  confere('rebates com o SO', r.rebates.comSO.total, 45)
+  // 227 da Couple's Account + 480 do Good Luck Smiles on the Daring (50% do budget de 960).
+  confere('bônus do Good Luck Smiles on the Daring', r.challenges.lista.map(a => [a.titulo, a.valor]), [['Strict Travel Mode', 0], ['Good Luck Smiles on the Daring', 480]])
   confere('saldo final', r.saldoFinal, SALDO)
   console.log('\n--- texto corrigido ---\n' + r.texto + '\n--- mudanças ---\n' + r.mudancas.join('\n') + '\n--- avisos ---\n' + r.avisos.map(a => `[${a.nivel}] ${a.texto}`).join('\n'))
 
-  // Mesma build, os dois com Dragon Heart: Elysia paga metade do que sobra depois do desconto dela.
+  // Mesma build, os dois com Dragon Heart: Usagi paga metade do que sobra depois do desconto dela.
   const k = WCFix.chaveHeritage(modelo, modelo.heritage[0])
   const r2 = rodar(WC_EXEMPLO, (c) => { c.donos[k] = 'ambos-c1'; c.so.arqMais = ['Dragon'] }).r
-  console.log('\n=== Os dois com Dragon Heart (Elysia também Dragon) ===')
-  confere('cópias da Dragon Heart', r2.heritage[0].copias.map(c => [c.nome, c.metade, c.desconto, c.paga]), [['Rimuru Tempest', false, 48, 12], ['Elysia', true, 48, 6]])
+  console.log('\n=== Os dois com Dragon Heart (Usagi também Dragon) ===')
+  confere('cópias da Dragon Heart', r2.heritage[0].copias.map(c => [c.nome, c.metade, c.desconto, c.paga]), [['Natsu Dragneel', false, 48, 12], [USAGI, true, 48, 6]])
   confere('saldo final', r2.saldoFinal, SALDO - 6)
 
-  // Sem a regra "só a origem mais cara", o SO é cobrado inteiro.
+  // Sem a regra "só a origem mais cara", as duas origens são pagas: os 200 do Natsu não voltam.
   const r3 = rodar(WC_EXEMPLO, (c) => { c.opcoes.origemMaisCara = false }).r
-  confere('sem "só a origem mais cara"', r3.saldoFinal, SALDO - 500)
-  // Waifu Perk fora da conta da origem: paga 500 (Elysia) + 400 (perk do Rimuru).
+  confere('sem "só a origem mais cara"', r3.saldoFinal, SALDO - 200)
+  // Power Swap fora da conta da origem: a origem do Natsu vale 100 (T7), e o Power Swap (100) é pago à parte.
   const r4 = rodar(WC_EXEMPLO, (c) => { c.opcoes.perkContaNaOrigem = false }).r
-  confere('Waifu Perk fora do preço da origem', [r4.origens.reembolso, r4.saldoFinal], [100, SALDO - 400])
+  confere('Power Swap fora do preço da origem', [r4.origens.reembolso, r4.saldoFinal], [100, SALDO - 100])
   // Idempotência: colar o texto corrigido de novo avisa.
   const r5 = rodar(r.texto).r
   confere('texto já corrigido é detectado', r5.avisos.some(a => a.nivel === 'erro' && a.texto.includes('já passou')), true)
 
   // Tags mexidas à mão: só a diferença fica guardada, e a que muda a conta gera aviso.
   console.log('\n=== Tags à mão ===')
-  confere('tags do Rimuru no banco', cfg.c1.tagsBase, ['st', 'hz', 'mt', 'cl', 'ml', 'ps', 'dr', 'pl', 'sc', 'di'])
-  confere('tags da Elysia no banco', cfg.so.tagsBase, ['cl', 'ur', 'sc', 'fm'])
+  confere('tags do Natsu no banco (as da Acnologia, pelo Power Swap)', cfg.c1.tagsBase, ['hr', 'hz', 'cl', 'dr', 'sc', 'tm'])
+  confere('tags da Usagi no banco', cfg.so.tagsBase, ['cl', 'id', 'ur', 'sc', 'di', 'fm', 'tm'])
   const r6 = rodar(WC_EXEMPLO, (c) => { WCFix.alternarTag(c.so, 'hz') }).r
-  confere('Elysia + Environmental à mão: rebates 14 → 24', r6.rebates.comSO.total, 24)
-  confere('aviso da tag à mão', r6.avisos.some(a => a.nivel === 'aviso' && a.texto.includes('Elysia, Environmental +10')), true)
+  confere('Usagi + Environmental à mão: rebates 45 → 50', r6.rebates.comSO.total, 50)
+  confere('aviso da tag à mão', r6.avisos.some(a => a.nivel === 'aviso' && a.texto.includes(`${USAGI}, Environmental +10`)), true)
   const r7 = rodar(WC_EXEMPLO, (c) => { WCFix.alternarTag(c.so, 'sc') }).r
   confere('tag à mão fora da build (Information já é dela: tirar) não muda a conta', r7.saldoFinal, SALDO)
   const r8 = rodar(WC_EXEMPLO, (c) => { WCFix.alternarTag(c.c1, 'hz') }).r
-  confere('Rimuru sem Environmental: rebates 14 → 4', r8.rebates.comSO.total, 4)
+  confere('Natsu sem Environmental: rebates 45 → 35', r8.rebates.comSO.total, 35)
   const r9 = rodar(WC_EXEMPLO, (c) => { WCFix.alternarTag(c.c1, 'Dragon', 'arq') }).r
-  confere('Rimuru sem o arquétipo Dragon: perde os +48', r9.arquetipos.c1.total, 0)
+  confere('Natsu sem o arquétipo Dragon: perde os +88', r9.arquetipos.c1.total, 0)
 
   // Configuração salva pela versão 1 (lista inteira de tags) vira diferença.
   const v1 = JSON.parse(JSON.stringify(cfg))
   for (const p of [v1.c1, v1.so]) { for (const k of ['tagsMais', 'tagsMenos', 'arqMais', 'arqMenos', 'personagemManual', 'tagsBase', 'arqBase']) delete p[k] }
   v1.c1.tagsDef = v1.c1.tagsDef.filter(t => t !== 'hz')
-  v1.c1.arquetipos = ['Dragon']
+  v1.c1.arquetipos = []
   const migrado = WCFix.configPadrao(modelo, banco, v1)
-  confere('versão 1 → tags tiradas', [migrado.c1.tagsMenos, migrado.c1.arqMenos], [['hz'], ['Transhuman']])
+  confere('versão 1 → tags tiradas', [migrado.c1.tagsMenos, migrado.c1.arqMenos], [['hz'], ['Dragon']])
 
   // Challenges: as três bases do bônus, o bônus desligado e um challenge posto pela ferramenta.
   console.log('\n=== Challenges ===')
   confere('DR achado pelo budget 960 na Intensity 5', r.challenges.drBuild, 10)
   confere('linha do Good Luck no texto', r.texto.includes('Good Luck Smiles on the Daring (challenge bonus: 50% of 960) +480 [1440]'), true)
   const rLeg = rodar(WC_EXEMPLO, (c) => { c.opcoes.bonusChallenge = 'legacy' }).r
-  confere('valores legados: 50% de 2500 (DR 10 na Intensity 1)', [rLeg.challenges.lista[1].valor, rLeg.saldoFinal], [1250, 391 + 1250])
+  confere('valores legados: 50% de 2500 (DR 10 na Intensity 1)', [rLeg.challenges.lista[1].valor, rLeg.saldoFinal], [1250, SALDO_SEM_BONUS + 1250])
   const rNada = rodar(WC_EXEMPLO, (c) => { c.opcoes.bonusChallenge = 'nenhum' }).r
-  confere('sem bônus de challenge: volta aos 391', rNada.saldoFinal, 391)
+  confere(`sem bônus de challenge: volta aos ${SALDO_SEM_BONUS}`, rNada.saldoFinal, SALDO_SEM_BONUS)
   const rSem = rodar(WC_EXEMPLO, (c) => { c.challenges.semBonus = ['Good Luck Smiles on the Daring'] }).r
-  confere('bônus desligado só no Good Luck', rSem.saldoFinal, 391)
+  confere('bônus desligado só no Good Luck', rSem.saldoFinal, SALDO_SEM_BONUS)
   const rPT = rodar(WC_EXEMPLO, (c) => { c.challenges.adicionados = ['Power Trip'] }).r
   confere('Power Trip posto pela ferramenta: +960, e o Good Luck sai sobre 1920', rPT.challenges.lista.map(a => [a.titulo, a.origem, a.valor]),
-    [['100,000 years of cultivation', 'texto', 0], ['Good Luck Smiles on the Daring', 'texto', 960], ['Power Trip', 'adicionado', 960]])
+    [['Strict Travel Mode', 'texto', 0], ['Good Luck Smiles on the Daring', 'texto', 960], ['Power Trip', 'adicionado', 960]])
   confere('linha nova do Power Trip no bloco Challenges', /Good Luck Smiles on the Daring \(challenge bonus: 50% of 1920\) \+960 \[1920\]\nPower Trip \(challenge bonus: 100% of 960\) \+960 \[2880\]/.test(rPT.texto), true)
   const rPT2 = rodar(WC_EXEMPLO, (c) => { c.challenges.adicionados = ['Power Trip']; c.opcoes.powerTripDobra = false }).r
   confere('sem o Power Trip dobrar a base: Good Luck volta a 480', rPT2.challenges.lista[1].valor, 480)
   const rGC = rodar(WC_EXEMPLO, (c) => { c.challenges.adicionados = ['Glass Cannon', 'Insider information'] }).r
   confere('avisos de requisito: Glass Cannon com Defenses e Insider sem Worthy Opponent', [rGC.avisos.some(a => a.texto.startsWith('Glass Cannon tira')), rGC.avisos.some(a => a.texto.startsWith('Insider information pede Worthy Opponent'))], [true, true])
-  const semBloco = WC_EXEMPLO.replace(/Challenges\n100,000 years of cultivation free \[960\]\nGood Luck Smiles on the Daring free \[960\]\n\n/, '')
+  const semBloco = WC_EXEMPLO.replace(/Challenges\nStrict Travel Mode free \[960\]\nGood Luck Smiles on the Daring free \[960\]\n\n/, '')
+  confere('o exemplo sem o bloco Challenges', semBloco.includes('Strict Travel Mode'), false)
   const rBloco = rodar(semBloco, (c) => { c.challenges.adicionados = ['No Continues'] }).r
   confere('build sem Challenges: o bloco nasce antes da Intensity', /Starting budget 960\n\nChallenges\nNo Continues \(challenge bonus: 80% of 960\) \+768 \[1728\]\n\nIntensity \[5\]/.test(rBloco.texto), true)
 }
@@ -117,62 +120,63 @@ function rodar(texto, ajuste) {
   console.log('\n=== Nomes dos contractors ===')
   const r = rodar(WC_EXEMPLO).r
   confere('sem nome escolhido: continua "You" e "Your SO", sem o "from" na linha do SO',
-    [r.texto.includes('\nYou as Rimuru Tempest (Possess) of T7 -100 ['), r.texto.includes('\nYour SO as Elysia (Possess) of T9 -500 [')], [true, true])
-  confere('resumo com o mundo dos dois', [
-    r.texto.includes('\nContractor 1: Rimuru Tempest (Reincarnated as a Slime) — Possess of T7 (T9 with Waifu Perk Reaping the Harvest) — '),
-    r.texto.includes('\nContractor 2 (SO): Elysia (Honkai Impact 3rd) — Possess of T9 — ')], [true, true])
-  const { cfg, r: rn } = rodar(WC_EXEMPLO, (c) => { c.c1.apelido = 'Kael'; c.so.apelido = ' Alphin ' })
-  confere('origens com os nomes', [rn.texto.includes('\nKael as Rimuru Tempest (Possess) of T7 -100 ['), rn.texto.includes('\nAlphin as Elysia (Possess) of T9 -500 [')], [true, true])
-  confere('"You as" sai do texto todo (Template Stacking também)', [rn.texto.includes('You as'), rn.texto.includes('\nTemplate Stacking I x2 [Kael as Rimuru Tempest has Aurelion Sol')], [false, true])
+    [r.texto.includes('\nYou as Natsu Dragneel (Possess) of T7 -100 ['), r.texto.includes(`\nYour SO as ${USAGI} (Possess) of T9 -500 [`)], [true, true])
+  // Com Power Swap, o mundo do contractor 1 fica de fora do resumo: o Natsu já não é quem era no mundo dele.
+  confere('resumo com o mundo do SO (o contractor 1 tem Power Swap)', [
+    r.texto.includes('\nContractor 1: Natsu Dragneel — Possess of T7 (Power Swap to Acnologia, T8) — '),
+    r.texto.includes(`\nContractor 2 (SO): ${USAGI} (Sailor Moon) — Possess of T9 — `)], [true, true])
+  const { cfg, r: rn } = rodar(WC_EXEMPLO, (c) => { c.c1.apelido = 'Alex'; c.so.apelido = ' Sam ' })
+  confere('origens com os nomes', [rn.texto.includes('\nAlex as Natsu Dragneel (Possess) of T7 -100 ['), rn.texto.includes(`\nSam as ${USAGI} (Possess) of T9 -500 [`)], [true, true])
+  confere('"You as" sai do texto todo (Template Stacking também)', [rn.texto.includes('You as'), rn.texto.includes('\nTemplate Stacking I x2 [Alex as Natsu Dragneel has Erza Scarlet')], [false, true])
   confere('resumo com nome e mundo', [
-    rn.texto.includes('\nContractor 1: Kael as Rimuru Tempest (Reincarnated as a Slime) — '),
-    rn.texto.includes('\nContractor 2 (SO): Alphin as Elysia (Honkai Impact 3rd) — ')], [true, true])
+    rn.texto.includes('\nContractor 1: Alex as Natsu Dragneel — '),
+    rn.texto.includes(`\nContractor 2 (SO): Sam as ${USAGI} (Sailor Moon) — `)], [true, true])
   confere('o nome não mexe no saldo', rn.saldoFinal, SALDO)
   const reaberto = WCFix.configPadrao(WCFix.analisar(WC_EXEMPLO), banco, JSON.parse(JSON.stringify(WCSaves.compactarCfg(cfg))))
-  confere('os nomes voltam com a build salva', [reaberto.c1.apelido, reaberto.so.apelido], ['Kael', ' Alphin '])
+  confere('os nomes voltam com a build salva', [reaberto.c1.apelido, reaberto.so.apelido], ['Alex', ' Sam '])
   const semResumo = rodar(WC_EXEMPLO, (c) => { c.opcoes.resumoNoFim = false }).r
-  confere('sem o resumo no fim, o mundo do SO fica na linha dele', semResumo.texto.includes('\nYour SO as Elysia (Possess) of T9 from Honkai Impact 3rd -500 ['), true)
+  confere('sem o resumo no fim, o mundo do SO fica na linha dele', semResumo.texto.includes(`\nYour SO as ${USAGI} (Possess) of T9 from Sailor Moon -500 [`), true)
 
   // "Your SO as" do Interactive, nas marcas entre colchetes e em Companions bought.
-  const kuroka = `Starting World: Teste
+  const soEntreColchetes = `Starting World: Teste
 Starting budget 1000
 
 Intensity [1]
 Couple's Account (Cooperative) 0
 
-You as Tatsumi (Possess) of T6 -50 [950]
+You as Gray Fullbuster (Possess) of T6 -50 [950]
 
 Misc Perks
-Paper Trail x2 [You as Tatsumi, Your SO as Kuroka Toujou] -2 [948]
+Paper Trail x2 [You as Gray Fullbuster, Your SO as Juvia Lockser] -2 [948]
 
 Companions bought -50 [898]
-Your SO as Kuroka Toujou(T6)[unbound] from Highschool DxD`
-  const rk = rodar(kuroka, (c) => { c.c1.apelido = 'Marcos'; c.so.apelido = 'Karina' }).r
+Your SO as Juvia Lockser(T6)[unbound] from Fairy Tail`
+  const rk = rodar(soEntreColchetes, (c) => { c.c1.apelido = 'Alex'; c.so.apelido = 'Sam' }).r
   confere('"Your SO as" vira o nome da SO em toda a build', [
-    rk.texto.includes('\nPaper Trail x2 [Marcos as Tatsumi, Karina as Kuroka Toujou] -2 ['),
-    rk.texto.includes('\nKarina as Kuroka Toujou (Possess) of T6 -50 ['), /You as|Your SO/.test(rk.texto)], [true, true, false])
+    rk.texto.includes('\nPaper Trail x2 [Alex as Gray Fullbuster, Sam as Juvia Lockser] -2 ['),
+    rk.texto.includes('\nSam as Juvia Lockser (Possess) of T6 -50 ['), /You as|Your SO/.test(rk.texto)], [true, true, false])
 
-  // Nomes escritos à mão na build ("Marcos as Tatsumi"): o SO deixa de ganhar "Your SO:" na frente.
+  // Nomes escritos à mão na build ("Alex as Gray Fullbuster"): o SO deixa de ganhar "Your SO:" na frente.
   const amao = `Starting World: Teste
 Starting budget 1000
 
 Intensity [1]
 Couple's Account (Cooperative) 0
 
-Marcos as Tatsumi (Possess) of T6 from Akame ga Kill! -50 [950]
-Karina as Elaina (Possess) of T6 from Majo no Tabitabi -0 [950]`
+Alex as Gray Fullbuster (Possess) of T6 from Fairy Tail -50 [950]
+Sam as Rei Ayanami (Possess) of T6 from Neon Genesis Evangelion -0 [950]`
   const { cfg: ca, r: ra } = rodar(amao)
   confere('nomes à mão: as linhas ficam como estão, sem "Your SO:"', [
-    ra.texto.includes('\nMarcos as Tatsumi (Possess) of T6 from Akame ga Kill! -50 ['),
-    ra.texto.includes('\nKarina as Elaina (Possess) of T6 -50 ['), ra.texto.includes('Your SO')], [true, true, false])
-  confere('nomes à mão: o resumo usa o mundo escrito na build', ra.texto.includes('\nContractor 1: Marcos as Tatsumi (Akame ga Kill!) — ') && ra.texto.includes('\nContractor 2 (SO): Karina as Elaina (Majo no Tabitabi) — '), true)
-  confere('nomes à mão: o nome da linha é o padrão do campo', [WCFix.quemDaLinha(ca.c1.nome), WCFix.quemDaLinha(ca.so.nome)], ['Marcos', 'Karina'])
-  const ra2 = rodar(amao, (c) => { c.c1.apelido = 'Kael' }).r
-  confere('nome escolhido troca o nome escrito à mão', [ra2.texto.includes('\nKael as Tatsumi (Possess) of T6 from Akame ga Kill! -50 ['), ra2.texto.includes('\nContractor 1: Kael as Tatsumi (Akame ga Kill!) — ')], [true, true])
+    ra.texto.includes('\nAlex as Gray Fullbuster (Possess) of T6 from Fairy Tail -50 ['),
+    ra.texto.includes('\nSam as Rei Ayanami (Possess) of T6 -50 ['), ra.texto.includes('Your SO')], [true, true, false])
+  confere('nomes à mão: o resumo usa o mundo escrito na build', ra.texto.includes('\nContractor 1: Alex as Gray Fullbuster (Fairy Tail) — ') && ra.texto.includes('\nContractor 2 (SO): Sam as Rei Ayanami (Neon Genesis Evangelion) — '), true)
+  confere('nomes à mão: o nome da linha é o padrão do campo', [WCFix.quemDaLinha(ca.c1.nome), WCFix.quemDaLinha(ca.so.nome)], ['Alex', 'Sam'])
+  const ra2 = rodar(amao, (c) => { c.c1.apelido = 'Max' }).r
+  confere('nome escolhido troca o nome escrito à mão', [ra2.texto.includes('\nMax as Gray Fullbuster (Possess) of T6 from Fairy Tail -50 ['), ra2.texto.includes('\nContractor 1: Max as Gray Fullbuster (Fairy Tail) — ')], [true, true])
 
   // Um contractor só, e origens sem "You as".
-  confere('um contractor só', rodar('Starting World: Teste\nStarting budget 960\n\nYou as Kafka (Possess) of T8 -200 [760]', (c) => { c.c1.apelido = 'Kael' }).r.texto.includes('\nKael as Kafka (Possess) of T8 -200 [760]'), true)
-  confere('Drop-In ganha o nome na frente', rodar('Starting World: Teste\nStarting budget 960\n\nDropped-In free [960]', (c) => { c.c1.apelido = 'Kael' }).r.texto.includes('\nKael: Dropped-In free [960]'), true)
+  confere('um contractor só', rodar('Starting World: Teste\nStarting budget 960\n\nYou as Kafka (Possess) of T8 -200 [760]', (c) => { c.c1.apelido = 'Alex' }).r.texto.includes('\nAlex as Kafka (Possess) of T8 -200 [760]'), true)
+  confere('Drop-In ganha o nome na frente', rodar('Starting World: Teste\nStarting budget 960\n\nDropped-In free [960]', (c) => { c.c1.apelido = 'Alex' }).r.texto.includes('\nAlex: Dropped-In free [960]'), true)
 }
 
 // 2. Mission Rewards: ler, refazer e mexer.
@@ -241,9 +245,9 @@ Iris(T3){Offspring} from Mundo D`
   confere('no séquito agora (sem morta, trocada e vendida)', sq.ativos, 6)
   confere('morta não dá Defense Rebate', [rs.rebates.comSO.total, rs.avisos.some(a => a.texto.startsWith('Quem está morto não dá Defense Rebates: Eva (-2)'))], [0, true])
   confere('toda forma de entrar e toda situação têm descrição', [Object.values(WCFix.METODOS_SEQUITO).every(m => m.desc), Object.values(WCFix.PAPEIS_SEQUITO).every(p => p.desc)], [true, true])
-  const { cfg: cc } = rodar(WC_EXEMPLO)
-  confere('na Couple\'s Account, o SO não aparece na retinue', rodar(WC_EXEMPLO).r.sequito.membros.length, 0)
-  confere('e a retinue sabe quem é o SO', rodar(WC_EXEMPLO).r.sequito.so, cc.so.nome)
+  const { cfg: cc, r: rc } = rodar(WC_EXEMPLO)
+  confere('na Couple\'s Account, o SO não aparece na retinue (só a Erza)', rc.sequito.membros.map(x => x.nome), ['Erza Scarlet'])
+  confere('e a retinue sabe quem é o SO', rc.sequito.so, cc.so.nome)
 }
 
 // 2c. Saves: arquivo .txt de ida e volta, junção de builds e reconhecimento de arquivos.
@@ -254,10 +258,10 @@ Iris(T3){Offspring} from Mundo D`
   confere('cfg compacto não guarda o que a página recalcula', ['candidatos', 'tagsBase', 'tagsDef', 'arquetipos'].some(k => k in compacto.c1), false)
   const reaberto = WCFix.calcular(modelo, WCFix.configPadrao(modelo, banco, JSON.parse(JSON.stringify(compacto))), banco)
   confere('cfg compacto reabre com o mesmo saldo', reaberto.saldoFinal, r.saldoFinal)
-  const versao = { id: 'v:teste1', rotulo: '+15', salvaEm: '2026-11-09T21:40:00.000Z', texto: WC_EXEMPLO, cfg: compacto, resumo: { mundo: modelo.mundo, saldo: r.saldoFinal, contractors: 'Rimuru Tempest & Elysia' } }
-  const build = { id: 'b:teste1', nome: 'Rimuru e Elysia', criadaEm: versao.salvaEm, versoes: [versao] }
-  confere('nome do arquivo no estilo do Interactive', WCSaves.nomeArquivo(build, versao), 'save_Rimuru e Elysia +15 - SCP.txt')
-  confere('nome sem caracteres proibidos', WCSaves.nomeArquivo({ ...build, nome: 'A/B: C?' }, { ...versao, rotulo: 'x*y' }), 'save_A-B- C- x-y - SCP.txt')
+  const versao = { id: 'v:teste1', rotulo: '+15', salvaEm: '2026-11-09T21:40:00.000Z', texto: WC_EXEMPLO, cfg: compacto, resumo: { mundo: modelo.mundo, saldo: r.saldoFinal, contractors: `Natsu Dragneel & ${USAGI}` } }
+  const build = { id: 'b:teste1', nome: 'Natsu e Usagi', criadaEm: versao.salvaEm, versoes: [versao] }
+  confere('nome do arquivo no estilo do Interactive', WCSaves.nomeArquivo(build, versao), 'save_Natsu e Usagi +15 - Fairy Tail.txt')
+  confere('nome sem caracteres proibidos', WCSaves.nomeArquivo({ ...build, nome: 'A/B: C?' }, { ...versao, rotulo: 'x*y' }), 'save_A-B- C- x-y - Fairy Tail.txt')
   const arq = WCSaves.arquivoVersao(build, versao, r.texto)
   confere('arquivo traz o texto corrigido para ler', arq.includes(`${WCSaves.MARCA_TEXTO}\n${r.texto.split('\n')[0]}`), true)
   const lido = WCSaves.lerArquivo(arq)
@@ -316,22 +320,53 @@ Tayzzyronth(T6)[bound] from Honkai: Star Rail`
   confere('aviso de tags vindas de Meus personagens', comMeus.avisos.some(a => a.nivel === 'info' && a.texto.includes('Tayzzyronth')), true)
 
   // Cópia de um personagem do banco, com tags trocadas, passa na frente do original.
-  const elysiaBanco = banco.buscar('Elysia', 'Honkai Impact 3rd', 9)[0]
-  const copia = { ...WCFix.registroDeObjeto({ nome: 'Elysia', mundo: 'Honkai Impact 3rd', sub: 'Fire Moth', tier: 9, defesas: ['cl', 'hz'], arquetipos: ['Transhuman'] }), base: elysiaBanco.idx, fonte: 'banco' }
+  const usagiBanco = banco.buscar(USAGI, 'Sailor Moon', 9)[0]
+  const copia = { ...WCFix.registroDeObjeto({ nome: USAGI, mundo: 'Sailor Moon', sub: usagiBanco.sub || '', tier: 9, defesas: ['cl', 'hz'], arquetipos: ['Mahoushoujo'] }), base: usagiBanco.idx, fonte: 'banco' }
   banco.definirMeus([...m2.lista, copia])
   const { cfg: cfgC, r: rC } = rodar(WC_EXEMPLO)
-  confere('cópia editada da Elysia é a escolhida (tags na ordem do Interactive)', [cfgC.so.personagem === copia.id, cfgC.so.tagsDef], [true, ['hz', 'cl']])
-  confere('com Environmental na cópia: rebates 24, sem aviso de tag à mão', [rC.rebates.comSO.total, rC.avisos.some(a => a.texto.includes('marcadas à mão'))], [24, false])
+  confere('cópia editada da Usagi é a escolhida (tags na ordem do Interactive)', [cfgC.so.personagem === copia.id, cfgC.so.tagsDef], [true, ['hz', 'cl']])
+  confere('cópia só com Stress e Environmental: rebates 45 → 30, sem aviso de tag à mão', [rC.rebates.comSO.total, rC.avisos.some(a => a.texto.includes('marcadas à mão'))], [30, false])
   // Personagem apagado de Meus personagens: a pessoa volta para o banco.
   banco.definirMeus(m2.lista)
   const { cfg: cfgD } = rodar(WC_EXEMPLO, null)
-  confere('cópia apagada: volta a Elysia do banco', cfgD.so.personagem, elysiaBanco.idx)
+  confere('cópia apagada: volta a Usagi do banco', cfgD.so.personagem, usagiBanco.idx)
   const cfgVelha = WCFix.configPadrao(WCFix.analisar(WC_EXEMPLO), banco, cfgC)
-  confere('config que apontava para a cópia apagada também volta ao banco', cfgVelha.so.personagem, elysiaBanco.idx)
+  confere('config que apontava para a cópia apagada também volta ao banco', cfgVelha.so.personagem, usagiBanco.idx)
   banco.definirMeus([])
 }
 
-// 4. Builds salvas no repositório: o leitor tem de fechar a conta de cada uma.
+// 3b. Bônus de challenge lançado à mão em Mission Rewards, e linha que não fecha a conta.
+{
+  console.log('\n=== Bônus lançado como missão e diferença mantida ===')
+  // Power Trip (+100% do budget) e No Continues (80% do budget dobrado) escritos como missões.
+  const comoMissao = `Starting World: Teste
+Starting budget 500
+
+You as Kafka (Possess) of T8 -200 [300]
+
+Mission Rewards +1300 [1600]:
+Power Trip in Challenges
+  Credits [500];
+No Continues in Challenges
+  Credits [800];`
+  const rm = rodar(comoMissao).r
+  confere('Power Trip 500 e No Continues 800 (80% do budget dobrado)', rm.challenges.lista.filter(a => a.aplicado).map(a => [a.titulo, a.valor]), [['Power Trip', 500], ['No Continues', 800]])
+  confere('saem de Mission Rewards e o saldo continua 1600', [rm.challenges.convertidas.length, rm.texto.includes('Mission Rewards'), rm.saldoFinal], [2, false, 1600])
+  // Uma linha com 130 a menos do que o custo escrito (custo escondido ou edição à mão).
+  const naoFecha = `Starting World: Teste
+Starting budget 1000
+
+You as Kafka (Possess) of T8 -200 [800]
+
+Misc Perks
+Exit Stage Left -5 [665]`
+  const { modelo: mf, r: rf } = rodar(naoFecha)
+  confere('a linha que não fecha é achada; o saldo é refeito', [mf.conferenciaSaldos.erros.length, rf.saldoFinal], [1, 795])
+  const rf2 = rodar(naoFecha, (c) => { c.opcoes.manterDiferencas = true }).r
+  confere('mantendo a diferença, o saldo perde os 130 que o texto não explica', rf2.saldoFinal, 795 - 130)
+}
+
+// 4. Builds de uma pasta (opcional): o leitor tem de fechar a conta de cada uma.
 const pastaBuilds = process.argv[2]
 if (pastaBuilds && fs.existsSync(pastaBuilds)) {
   console.log(`\n=== Builds de ${pastaBuilds} ===`)
@@ -341,25 +376,13 @@ if (pastaBuilds && fs.existsSync(pastaBuilds)) {
     if (!m) { console.log(`--   ${arq}: sem bloco de texto`); continue }
     const { modelo, cfg, r } = rodar(m[1])
     const erros = modelo.conferenciaSaldos.erros
-    // build-tatsumi.md tem mesmo uma linha que não fecha (130 a menos, anotado na própria build).
-    const esperados = arq === 'build-tatsumi.md' ? 1 : 0
-    if (erros.length !== esperados) falhas++
-    if (esperados) {
-      // É DRX start: o saldo é o que sobra das verbas (169, como na build), menos os 130 que o texto não explica.
-      const r2 = rodar(m[1], (c) => { c.opcoes.manterDiferencas = true }).r
-      confere(`${arq}: mantendo a diferença, as sobras do DRX perdem os 130 que o texto não explica`, r2.saldoFinal, 169 - 130)
-    }
+    if (erros.length) falhas++
     const resumo = `casal=${modelo.casal} heritage=${modelo.heritage.length} defenses=${modelo.defenses.length} saldo ${WCFix.fmt(modelo.conferenciaSaldos.saldoFinalMostrado)} → ${WCFix.fmt(r.saldoFinal)}`
-    console.log(`${erros.length !== esperados ? 'FALHA' : 'ok  '} ${arq}: ${resumo}${erros.length ? '\n      não fecha: ' + erros.map(e => `${e.linha.raw.trim()} (esperado ${e.esperado})`).join('\n      ') : ''}`)
+    console.log(`${erros.length ? 'FALHA' : 'ok  '} ${arq}: ${resumo}${erros.length ? '\n      não fecha: ' + erros.map(e => `${e.linha.raw.trim()} (esperado ${e.esperado})`).join('\n      ') : ''}`)
     const conf = r.conferencia.filter(c => Math.abs(c.texto - c.recalculado) > 0.01).map(c => `${c.rotulo} ${c.texto}→${c.recalculado}`)
     if (conf.length) console.log(`      conferência: ${conf.join(' | ')}`)
     const comBonus = r.challenges.lista.filter(a => a.aplicado)
     if (comBonus.length) console.log(`      challenges: ${comBonus.map(a => `${a.titulo} +${a.valor}`).join(', ')}${r.challenges.convertidas.length ? ` (tirados de Mission Rewards: ${r.challenges.convertidas.map(x => x.titulo).join(', ')})` : ''}`)
-    if (arq === 'build-alphin.md') {
-      // O usuário tinha lançado os bônus como Mission Rewards (515 + 824): agora vão para as linhas dos challenges.
-      confere(`${arq}: Power Trip 515 e No Continues 824 (80% do budget dobrado)`, comBonus.map(a => [a.titulo, a.valor]), [['Power Trip', 515], ['No Continues', 824]])
-      confere(`${arq}: Mission Rewards some e o saldo continua 5`, [r.texto.includes('Mission Rewards'), r.saldoFinal], [false, 5])
-    }
     if (modelo.casal) {
       console.log(`      SO=${cfg.so.nome} (T${cfg.so.tier}, cobrado ${cfg.so.cobrado}); rebates sem o SO ${r.rebates.semSO.total} (texto ${modelo.rebates ? modelo.rebates.valor : 0})`)
       // Sem as tags do SO, os Defense Rebates têm de dar o mesmo número do Interactive.

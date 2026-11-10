@@ -32,4 +32,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const gravado = fs.readFileSync(SAIDA, 'utf8')
   if (gravado !== html) { console.error('ERRO: o arquivo gravado saiu diferente. Rode de novo.'); process.exit(1) }
   console.log(`Pronto: ${SAIDA} (${(Buffer.byteLength(html) / 1024 / 1024).toFixed(2)} MB)`)
+  // Só um aviso: texto sem tradução aparece em português na versão em inglês.
+  try {
+    const { faltando } = await import('./traducoes.mjs')
+    const falta = faltando()
+    if (falta.length) console.warn(`Aviso: ${falta.length} texto(s) sem tradução em fonte/traducao-en.js. Veja com: node ferramentas/traducoes.mjs`)
+  } catch (e) {
+    console.warn(`Aviso: não deu para conferir as traduções (${e.message}).`)
+  }
 }
