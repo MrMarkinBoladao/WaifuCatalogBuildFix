@@ -1,0 +1,104 @@
+# Caderno do Contractor — Waifu Catalog
+
+Abra `WaifuCatalogBuildFix.html` com dois cliques (Chrome, Edge ou Opera). Não precisa instalar nada nem ter internet. A página é um arquivo só, com os dados dentro, então também funciona copiada para outro lugar ou aberta no celular.
+
+O Caderno lê o **Copy Text of Build** do Interactive, refaz as contas, mostra a retinue e guarda as versões da build enquanto você joga.
+
+## As abas
+
+- **Build:** cole o texto do **Copy Text of Build** do Interactive (Alt+S). Embaixo aparece o que a página leu, se a build já foi salva, e os "Specific credit modifiers" que dá para desligar.
+- **Saves:** as builds salvas, com todas as versões, e os arquivos .txt para baixar e carregar.
+- **Pessoas e tags:** os contractors e as companions, cada um com o personagem de onde vêm as tags, o arquétipo e as tags de Defense. Em cada contractor, o campo **Nome do contractor** põe o nome que você escolher no lugar de "You" e "Your SO" em todo o texto (`Kael as Rimuru Tempest (Possess) of T7`). Vazio, fica "You" e "Your SO".
+- **Retinue:** o séquito, com como cada membro entrou e a situação dele.
+- **Heritage:** de quem é cada perk e quanto cada um paga. Na Couple's Account, dá para escolher "Os dois".
+- **Challenges:** o bônus em créditos de cada challenge, e a lista para pôr outros na build.
+- **Missões:** as recompensas de Mission Rewards, para editar, tirar ou pôr missões.
+- **Resultado:** o que mudou, os avisos, a conferência dos descontos e o texto corrigido. No PC fica sempre à direita; no celular é uma aba.
+- **Meus personagens:** personagens que não estão no banco do Interactive, ou cópias com as tags do seu jeito.
+- **Regras:** as escolhas de regra da build aberta e de onde vêm os dados.
+
+O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. Um ponto no **Salvar** quer dizer que a build mudou desde a última versão salva.
+
+## Saves
+
+- **Salvar** guarda uma versão da build aberta: o texto colado e tudo o que você marcou na página (tags, donos de heritage, challenges, missões). A primeira vez cria a build salva, com o nome dos contractors e do mundo; mude o nome na aba Saves.
+- **Para acompanhar enquanto joga:** jogue no Interactive, copie o Copy Text of Build e cole na aba Build. Se for a mesma build (mesmo mundo e mesma origem), as suas escolhas continuam e o Salvar vira a próxima versão dela.
+- **Nome da versão:** escreva o que quiser ("+16", "depois do 4º PvP"). Se a última versão começa com um número, como "+15", a página sugere "+16". Sem nome, fica "versão N".
+- **Builds salvas:** abrir a última versão ou qualquer outra, renomear, excluir, e baixar uma versão ou todas.
+- **Salvar como build nova:** começa outra build a partir da aberta, para seguir por outro caminho sem mexer na original.
+- **Arquivos .txt:** o arquivo de uma versão tem o texto corrigido (dá para colar numa LLM) e, no fim, os dados para carregar de novo. O nome segue o estilo dos saves do Interactive: `save_Kukulkan PvP +15 - SCP.txt`.
+- **Carregar arquivo** aceita os .txt que a página baixa (uma versão, todas as versões de uma build ou o backup de tudo) e também um .txt com o texto do Copy Text of Build. Dá para soltar o arquivo em cima da caixa tracejada. Nada do que já está salvo é apagado. Os saves do próprio Interactive (o JSON de lá) não abrem aqui: abra no Interactive e use o Copy Text of Build.
+- **Backup de tudo:** um .txt com todas as builds, Meus personagens e as preferências. Os saves ficam só neste navegador; baixe um backup de vez em quando, e use ele para levar tudo a outro aparelho.
+
+## Retinue
+
+- Cada membro de `Companions bought` e `Companions captured` aparece com **como entrou** e a **situação**, e o que dá de Defense Rebate. Os filtros mostram só um grupo, e a busca acha pelo nome ou pelo mundo.
+- **Como entrou** (a marca entre colchetes, `[buy]`; quem está em Companions captured entrou por captura): comprado, capturado, Yoink, usado (Slightly Used), sem binding (unbound), tirado de outro contractor (steal ou PvP).
+- **Situação** (a marca entre chaves, `{Familiar}`): Companion, Follower, Familiar, Devotee, filho (Offspring), morto (Dead), trocado (Traded Away), Exile, e vendido (`--SOLD`).
+- A aba explica cada marca. Quem está morto, vendido, trocado ou em Exile não dá Defense Rebates. Para os mortos, é a regra de perder alguém do séquito; o Interactive ainda conta, e a diferença aparece nos Avisos.
+- Na Couple's Account, o SO fica na aba Pessoas e tags, como contractor 2.
+
+## Tags de Defense
+
+- Cada pessoa mostra todas as tags de Defense que tem. As que estão destacadas, com o valor verde (`Stress +2`), dão desconto nesta build. As outras são de Defenses que a build não compra, e só passariam a valer se a build comprasse.
+- Toque numa tag para tirar ou pôr de volta. Use **+ tag** para marcar outra; cada opção mostra a condição do desconto.
+- Tag ou arquétipo marcado à mão que muda a conta aparece nos **Avisos**, com a condição, para você conferir no cânone.
+- A tabela **Defense Rebates: quem dá desconto em quê**, no fim da aba, mostra quem dá quanto em cada Defense da build.
+
+## Meus personagens
+
+- **Novo personagem:** nome (como aparece na build), obra, tier, arquétipos e tags de Defense, com a condição de cada uma.
+- **Copiar um do banco:** procura um personagem do Interactive e cria uma cópia sua para editar. A cópia passa na frente do original.
+- **Importar:** traz os personagens que você criou no Interactive. Lá, abra **Companions**, toque na engrenagem ⚙ ao lado de **Add Character**, depois em **Import / Export** e em **Export**. Cole aqui. Importar de novo atualiza, sem duplicar.
+- **Baixar backup / Copiar backup:** Meus personagens ficam salvos só neste navegador. O backup serve para levar a outro aparelho ou navegador (Importar → Carregar arquivo).
+- Quando a build cita um personagem pelo nome, a ferramenta procura primeiro em Meus personagens, depois no banco. Editar um personagem muda todas as builds que usam ele.
+- Na aba Pessoas e tags, quem não foi achado ganha o botão **Criar … em Meus personagens**, que já vem com o nome, a obra e o tier da build.
+
+## Challenges
+
+- Os challenges da build são reconhecidos no bloco `Challenges` do texto. Os que dão créditos (Power Trip 100%, Good Luck Smiles on the Daring 50%, Glass Cannon 80%, No Continues 80%, Forgetful Hopper 60%, Lost Goods 40%, Frog in a Well 20%, Rebellious Brats 10%) ganham o bônus na própria linha: `Power Trip (challenge bonus: 100% of 515) +515 [1030]`.
+- **Base do bônus** (vale para todas as builds):
+  - **Com base na Intensity** (padrão): a porcentagem sai sobre o `Starting budget` da build, que já vem com a Intensity.
+  - **Valores legados:** sai sobre o budget do DR na Intensity 1 (2500 no DR 10), o número que o card do Interactive mostra. O DR é achado pelo budget; se não for, escolha na aba.
+  - **Não somar:** como o Interactive sem Legacy Difficulty.
+- **O Power Trip dobra o budget antes dos outros bônus** (ligado): com Power Trip e No Continues num budget de 515, o No Continues dá 80% de 1.030. Desligado, cada bônus sai sobre o budget original.
+- **Pôr outro challenge:** a linha entra no bloco `Challenges` (que nasce antes da Intensity, se não existir). Cada challenge mostra os requisitos, e os que não batem com a build (DR mínimo, DR 11, conflitos, Glass Cannon com Defenses) aparecem nos Avisos.
+- Bônus que você tinha lançado à mão em Mission Rewards, como `Power Trip in Challenges`, sai de lá e vai para a linha do challenge, sem contar duas vezes.
+
+## Missões
+
+- A aba lê o bloco `Mission Rewards` (o Interactive às vezes cola uma missão na outra, na mesma linha) e escreve de novo com uma missão e uma recompensa por linha.
+- Só as recompensas `Credits` entram no saldo. Tickets, perks e companions ficam escritos no texto.
+- Dá para mudar valores, tirar missões e pôr missões novas. "Voltar às missões do texto" desfaz tudo. Se você colar a mesma build com as missões mudadas no Interactive, valem as do texto novo.
+
+## O que é corrigido
+
+- O saldo de cada linha, pelo custo escrito nela. Linha que não fecha aparece nos Avisos.
+- A Intensity (1 + a soma das cláusulas) e o DR que o budget indica.
+- **Couple's Account:**
+  - o SO sai de "Companions bought" e vira a origem do contractor 2, no mesmo formato da linha do contractor 1, sem o "from";
+  - o resumo do fim diz o mundo de cada contractor, tirado da build ou do personagem do banco. Se o resumo estiver desligado, o "from" continua na linha do SO;
+  - só a mais cara das duas origens é paga;
+  - cada um tem o próprio desconto de arquétipo: o preço do tier no passo 1a (com Waifu Perk ou Power Swap), com teto de 80% em cada perk, só nas árvores que combinam com ele;
+  - heritage que os dois compram: o segundo paga metade do que sobra depois dos descontos dele, sem o teto de 80%;
+  - as tags do SO entram nos Defense Rebates;
+  - o "Specific credit modifiers" de reembolso do SO, feito à mão, sai (a ferramenta já faz essa conta).
+- **Defense Rebates:** cada pessoa com a tag dá até 40% de uma compra da Defense, e tudo o que ela dá, somado, não passa do preço do tier dela. Walk-In, Drop-In e Extra sem Power Swap, companions vendidas e Exile não contam.
+- **Conferência dos descontos:** compara o que o Interactive escreveu (arquétipo, Talents e Defenses repetidos, Defense Rebates) com a conta refeita. Fora da Couple's Account, a conta refeita entra sozinha quando você mexe em tags ou usa Meus personagens; senão, marque "Usar o recalculado".
+
+## Escolhas de regra (aba Regras)
+
+Onde as regras deixam dúvida, a ferramenta escolhe um lado e deixa você trocar:
+
+- **Waifu Perk e Power Swap da origem entram no preço da origem** (ligado). Assim, Rimuru T7 + Reaping the Harvest conta como uma origem de 500, igual à Elysia T9. Desligado, a Waifu Perk é paga à parte, e o exemplo fica 400 créditos mais caro.
+- **O SO ganha desconto de arquétipo** (ligado) e **as tags do SO contam nos Defense Rebates** (ligado). O Interactive não conta o SO em nenhum dos dois.
+- **Somar os brindes da 2ª cópia de heritage** (desligado). Ligado, os Talents e Defenses grátis entram de novo, e o que passar do limite volta como desconto de repetido.
+
+## Arquivos
+
+- `WaifuCatalogBuildFix.html`: a página, gerada a partir da pasta `fonte/`. Não edite à mão.
+- `fonte/`: as partes da página. `pagina.html` (estrutura), `estilo.css` (visual), `interface.js` (telas), `motor.js` (contas), `saves.js` (saves e arquivos .txt), `exemplo.js` (a build do Rimuru com a Elysia).
+- `dados/interactive-dados.js`: preços de heritage, Talents e Defenses, a lista de challenges e as tags de 38 mil personagens, tirados do Interactive.
+- `ferramentas/atualizar-dados.bat`: baixa os dados do Interactive de novo e refaz a página (precisa do [Node.js](https://nodejs.org)). Rode quando o Interactive ganhar personagens ou perks novos.
+- `ferramentas/montar.mjs`: junta `fonte/` e os dados em `WaifuCatalogBuildFix.html` (`node montar.mjs`, dentro de `ferramentas`).
+- `ferramentas/testes.mjs`: testes das contas e de Meus personagens (`node testes.mjs`, dentro de `ferramentas`). Também confere se a página está em dia com `fonte/`.

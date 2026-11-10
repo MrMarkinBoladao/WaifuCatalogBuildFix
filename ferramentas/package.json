@@ -1,0 +1,11 @@
+{
+  "name": "waifu-catalog-build-fix-ferramentas",
+  "private": true,
+  "type": "module",
+  "description": "Atualiza os dados do Interactive, monta a página do Caderno do Contractor e roda os testes.",
+  "scripts": {
+    "atualizar": "node atualizar-dados.mjs",
+    "montar": "node montar.mjs",
+    "testar": "node testes.mjs"
+  }
+}

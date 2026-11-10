@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Caderno do Contractor — Waifu Catalog</title>
+<!-- Página-fonte: ferramentas/montar.mjs junta este arquivo, o CSS e os scripts em WaifuCatalogBuildFix.html. -->
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body data-aba="build">
+<header class="topo" id="topo">
+  <div class="topo-dentro">
+    <div class="marca"><h1>Caderno do Contractor <small>Waifu Catalog</small></h1></div>
+    <div class="saldo-topo" aria-live="polite">
+      <span class="rotulo">Saldo final</span>
+      <b id="saldoFinal">—</b>
+      <span class="antes" id="saldoAntes"></span>
+    </div>
+    <button id="btnSalvarTopo" type="button" class="sec" title="Salvar uma versão desta build (aba Saves)">Salvar</button>
+    <button id="btnCopiar" type="button">Copiar texto</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="col-esq">
+    <nav class="abas" id="abas" role="tablist" aria-label="Partes da build">
+      <button type="button" role="tab" id="aba-build" data-aba="build" aria-controls="painel-build">Build</button>
+      <button type="button" role="tab" id="aba-saves" data-aba="saves" aria-controls="painel-saves">Saves <span class="contador" id="contSaves" hidden></span></button>
+      <button type="button" role="tab" id="aba-pessoas" data-aba="pessoas" aria-controls="painel-pessoas">Pessoas e tags <span class="contador" id="contPessoas" hidden></span></button>
+      <button type="button" role="tab" id="aba-retinue" data-aba="retinue" aria-controls="painel-retinue">Retinue <span class="contador" id="contRetinue" hidden></span></button>
+      <button type="button" role="tab" id="aba-heritage" data-aba="heritage" aria-controls="painel-heritage">Heritage <span class="contador" id="contHeritage" hidden></span></button>
+      <button type="button" role="tab" id="aba-challenges" data-aba="challenges" aria-controls="painel-challenges">Challenges <span class="contador" id="contChallenges" hidden></span></button>
+      <button type="button" role="tab" id="aba-missoes" data-aba="missoes" aria-controls="painel-missoes">Missões <span class="contador" id="contMissoes" hidden></span></button>
+      <button type="button" role="tab" id="aba-resultado" data-aba="resultado" aria-controls="painel-resultado" class="so-estreito">Resultado <span class="contador" id="contResultado" hidden></span></button>
+      <button type="button" role="tab" id="aba-meus" data-aba="meus" aria-controls="painel-meus">Meus personagens <span class="contador" id="contMeus" hidden></span></button>
+      <button type="button" role="tab" id="aba-regras" data-aba="regras" aria-controls="painel-regras">Regras</button>
+    </nav>
+
+    <main>
+      <section class="painel" id="painel-build" data-painel="build" role="tabpanel" aria-labelledby="aba-build">
+        <div class="card">
+          <div class="card-topo"><h2>Build do Interactive</h2><small>cole o texto do botão "Copy Text of Build" (Alt+S)</small></div>
+          <textarea id="entrada" spellcheck="false" autocomplete="off" placeholder="Cole aqui o texto do &quot;Copy Text of Build&quot;"></textarea>
+          <div class="botoes">
+            <button id="btnColar" type="button" class="sec">Colar</button>
+            <button id="btnExemplo" type="button" class="sec">Usar o exemplo</button>
+            <button id="btnLimpar" type="button" class="leve">Limpar</button>
+            <label class="check"><input type="checkbox" id="chkCasal"> Tratar como Couple's Account</label>
+          </div>
+        </div>
+        <div id="painelBuild"></div>
+      </section>
+      <section class="painel" id="painel-saves" data-painel="saves" role="tabpanel" aria-labelledby="aba-saves"><div id="painelSaves"></div></section>
+      <section class="painel" id="painel-pessoas" data-painel="pessoas" role="tabpanel" aria-labelledby="aba-pessoas"><div id="painelPessoas"></div></section>
+      <section class="painel" id="painel-retinue" data-painel="retinue" role="tabpanel" aria-labelledby="aba-retinue"><div id="painelRetinue"></div></section>
+      <section class="painel" id="painel-heritage" data-painel="heritage" role="tabpanel" aria-labelledby="aba-heritage"><div id="painelHeritage"></div></section>
+      <section class="painel" id="painel-challenges" data-painel="challenges" role="tabpanel" aria-labelledby="aba-challenges"><div id="painelChallenges"></div></section>
+      <section class="painel" id="painel-missoes" data-painel="missoes" role="tabpanel" aria-labelledby="aba-missoes"><div id="painelMissoes"></div></section>
+      <section class="painel" id="painel-meus" data-painel="meus" role="tabpanel" aria-labelledby="aba-meus"><div id="painelMeus"></div></section>
+      <section class="painel" id="painel-regras" data-painel="regras" role="tabpanel" aria-labelledby="aba-regras"><div id="painelRegras"></div></section>
+    </main>
+  </div>
+
+  <aside class="col-dir painel" id="painel-resultado" data-painel="resultado" role="tabpanel" aria-labelledby="aba-resultado">
+    <div class="card resultado" id="resultado" data-sub="resumo">
+      <div class="card-topo"><h2>Resultado</h2><small>atualiza enquanto você mexe</small></div>
+      <div class="subabas" role="tablist" aria-label="Como ver o resultado">
+        <button type="button" role="tab" data-sub="resumo">Resumo</button>
+        <button type="button" role="tab" data-sub="texto">Texto corrigido</button>
+        <button type="button" role="tab" data-sub="linhas">Linha a linha</button>
+      </div>
+      <div data-subpainel="resumo">
+        <div id="blocoAvisos"></div>
+        <div id="blocoMudancas"></div>
+        <div id="blocoConferencia"></div>
+      </div>
+      <div data-subpainel="texto">
+        <textarea id="saida" readonly spellcheck="false" aria-label="Texto corrigido"></textarea>
+        <div class="botoes"><button type="button" id="btnCopiar2">Copiar texto corrigido</button></div>
+      </div>
+      <div data-subpainel="linhas">
+        <div id="saidaLinhas"></div>
+        <div class="legenda">
+          <span style="background:var(--bom-fundo);color:var(--bom)">+ linha nova</span>
+          <span style="background:var(--ruim-fundo);color:var(--ruim)">− linha tirada</span>
+          <span style="background:var(--alerta-fundo);color:var(--alerta)">~ linha mudada</span>
+          <span style="color:var(--info)">só o saldo mudou</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="../dados/interactive-dados.js"></script>
+<script src="motor.js"></script>
+<script src="saves.js"></script>
+<script src="exemplo.js"></script>
+<script src="interface.js"></script>
+</body>
+</html>
