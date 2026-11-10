@@ -1,14 +1,24 @@
 # Caderno do Contractor — Waifu Catalog
 
-Abra `WaifuCatalogBuildFix.html` com dois cliques (Chrome, Edge ou Opera). Não precisa instalar nada nem ter internet. A página é um arquivo só, com os dados dentro, então também funciona copiada para outro lugar ou aberta no celular.
+**Use online:** https://mrmarkinboladao.github.io/WaifuCatalogBuildFix/
 
-O Caderno lê o **Copy Text of Build** do Interactive, refaz as contas, mostra a retinue e guarda as versões da build enquanto você joga.
+*[English version: README.md](README.md)*
+
+O Caderno lê o **Copy Text of Build** do [Waifu Catalog Interactive](https://waifu-catalog.neocities.org), refaz as contas, mostra a retinue e guarda as versões da build enquanto você joga.
+
+Também dá para usar sem internet: baixe `WaifuCatalogBuildFix.html` e abra com dois cliques (Chrome, Edge ou Opera). Não precisa instalar nada. A página é um arquivo só, com os dados dentro, então também funciona copiada para outro lugar ou aberta no celular.
+
+## Idioma
+
+- A página está em **Português (Brasil)** e **English (United States)**. Troque pela bandeira no canto do topo.
+- A escolha fica salva no navegador. Na primeira visita, a página segue o idioma do navegador: português para quem usa português, inglês para os outros.
+- O **texto corrigido**, que vai para a LLM, sai sempre em inglês, como o do Interactive.
 
 ## As abas
 
 - **Build:** cole o texto do **Copy Text of Build** do Interactive (Alt+S). Embaixo aparece o que a página leu, se a build já foi salva, e os "Specific credit modifiers" que dá para desligar.
 - **Saves:** as builds salvas, com todas as versões, e os arquivos .txt para baixar e carregar.
-- **Pessoas e tags:** os contractors e as companions, cada um com o personagem de onde vêm as tags, o arquétipo e as tags de Defense. Em cada contractor, o campo **Nome do contractor** põe o nome que você escolher no lugar de "You" e "Your SO" em todo o texto (`Kael as Rimuru Tempest (Possess) of T7`). Vazio, fica "You" e "Your SO".
+- **Pessoas e tags:** os contractors e as companions, cada um com o personagem de onde vêm as tags, o arquétipo e as tags de Defense. Em cada contractor, o campo **Nome do contractor** põe o nome que você escolher no lugar de "You" e "Your SO" em todo o texto (`Alex as Natsu Dragneel (Possess) of T7`). Vazio, fica "You" e "Your SO".
 - **Retinue:** o séquito, com como cada membro entrou e a situação dele.
 - **Heritage:** de quem é cada perk e quanto cada um paga. Na Couple's Account, dá para escolher "Os dois".
 - **Challenges:** o bônus em créditos de cada challenge, e a lista para pôr outros na build.
@@ -47,9 +57,10 @@ O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. U
 - **Nome da versão:** escreva o que quiser ("+16", "depois do 4º PvP"). Se a última versão começa com um número, como "+15", a página sugere "+16". Sem nome, fica "versão N".
 - **Builds salvas:** abrir a última versão ou qualquer outra, renomear, excluir, e baixar uma versão ou todas.
 - **Salvar como build nova:** começa outra build a partir da aberta, para seguir por outro caminho sem mexer na original.
-- **Arquivos .txt:** o arquivo de uma versão tem o texto corrigido (dá para colar numa LLM) e, no fim, os dados para carregar de novo. O nome segue o estilo dos saves do Interactive: `save_Kukulkan PvP +15 - SCP.txt`.
+- **Arquivos .txt:** o arquivo de uma versão tem o texto corrigido (dá para colar numa LLM) e, no fim, os dados para carregar de novo. O nome segue o estilo dos saves do Interactive: `save_Natsu e Usagi +15 - Fairy Tail.txt`.
 - **Carregar arquivo** aceita os .txt que a página baixa (uma versão, todas as versões de uma build ou o backup de tudo) e também um .txt com o texto do Copy Text of Build. Dá para soltar o arquivo em cima da caixa tracejada. Nada do que já está salvo é apagado. Os saves do próprio Interactive (o JSON de lá) não abrem aqui: abra no Interactive e use o Copy Text of Build.
 - **Backup de tudo:** um .txt com todas as builds, Meus personagens e as preferências. Os saves ficam só neste navegador; baixe um backup de vez em quando, e use ele para levar tudo a outro aparelho.
+- **O site e o arquivo baixado guardam separado:** o navegador trata cada endereço como um lugar diferente. Para levar os saves do arquivo `WaifuCatalogBuildFix.html` para o site (ou o contrário), baixe o backup de tudo num e carregue no outro.
 
 ## Retinue
 
@@ -77,12 +88,12 @@ O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. U
 
 ## Challenges
 
-- Os challenges da build são reconhecidos no bloco `Challenges` do texto. Os que dão créditos (Power Trip 100%, Good Luck Smiles on the Daring 50%, Glass Cannon 80%, No Continues 80%, Forgetful Hopper 60%, Lost Goods 40%, Frog in a Well 20%, Rebellious Brats 10%) ganham o bônus na própria linha: `Power Trip (challenge bonus: 100% of 515) +515 [1030]`.
+- Os challenges da build são reconhecidos no bloco `Challenges` do texto. Os que dão créditos (Power Trip 100%, Good Luck Smiles on the Daring 50%, Glass Cannon 80%, No Continues 80%, Forgetful Hopper 60%, Lost Goods 40%, Frog in a Well 20%, Rebellious Brats 10%) ganham o bônus na própria linha: `Power Trip (challenge bonus: 100% of 500) +500 [1000]`.
 - **Base do bônus** (vale para todas as builds):
   - **Com base na Intensity** (padrão): a porcentagem sai sobre o `Starting budget` da build, que já vem com a Intensity.
   - **Valores legados:** sai sobre o budget do DR na Intensity 1 (2500 no DR 10), o número que o card do Interactive mostra. O DR é achado pelo budget; se não for, escolha na aba.
   - **Não somar:** como o Interactive sem Legacy Difficulty.
-- **O Power Trip dobra o budget antes dos outros bônus** (ligado): com Power Trip e No Continues num budget de 515, o No Continues dá 80% de 1.030. Desligado, cada bônus sai sobre o budget original.
+- **O Power Trip dobra o budget antes dos outros bônus** (ligado): com Power Trip e No Continues num budget de 500, o No Continues dá 80% de 1.000. Desligado, cada bônus sai sobre o budget original.
 - **Pôr outro challenge:** a linha entra no bloco `Challenges` (que nasce antes da Intensity, se não existir). Cada challenge mostra os requisitos, e os que não batem com a build (DR mínimo, DR 11, conflitos, Glass Cannon com Defenses) aparecem nos Avisos.
 - Bônus que você tinha lançado à mão em Mission Rewards, como `Power Trip in Challenges`, sai de lá e vai para a linha do challenge, sem contar duas vezes.
 
@@ -112,16 +123,25 @@ O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. U
 
 Onde as regras deixam dúvida, a ferramenta escolhe um lado e deixa você trocar:
 
-- **Waifu Perk e Power Swap da origem entram no preço da origem** (ligado). Assim, Rimuru T7 + Reaping the Harvest conta como uma origem de 500, igual à Elysia T9. Desligado, a Waifu Perk é paga à parte, e o exemplo fica 400 créditos mais caro.
+- **Waifu Perk e Power Swap da origem entram no preço da origem** (ligado). Assim, no exemplo, Natsu T7 (100) com Power Swap para Acnologia T8 (mais 100) conta como uma origem de 200. Desligado, o Power Swap é pago à parte, e o exemplo fica 100 créditos mais caro.
 - **O SO ganha desconto de arquétipo** (ligado) e **as tags do SO contam nos Defense Rebates** (ligado). O Interactive não conta o SO em nenhum dos dois.
 - **Somar os brindes da 2ª cópia de heritage** (desligado). Ligado, os Talents e Defenses grátis entram de novo, e o que passar do limite volta como desconto de repetido.
-- **DRX start, DLC de blocos sem verba própria** (só em build DRX): do desconto de repetidos (padrão, a conta das builds da Yami, do Tatsumi em RWBY e do Plum) ou da verba de 600, sem repetidos (a conta do Tatsumi em Reincarnated as a Slime).
+- **DRX start, DLC de blocos sem verba própria** (só em build DRX): do desconto de repetidos (padrão) ou da verba de 600, sem repetidos.
 
 ## Arquivos
 
 - `WaifuCatalogBuildFix.html`: a página, gerada a partir da pasta `fonte/`. Não edite à mão.
-- `fonte/`: as partes da página. `pagina.html` (estrutura), `estilo.css` (visual), `interface.js` (telas), `motor.js` (contas), `saves.js` (saves e arquivos .txt), `exemplo.js` (a build do Rimuru com a Elysia).
+- `fonte/`: as partes da página. `pagina.html` (estrutura), `estilo.css` (visual), `interface.js` (telas), `motor.js` (contas), `saves.js` (saves e arquivos .txt), `exemplo.js` (a build de exemplo: Natsu Dragneel com a Tsukino Usagi), `idiomas.js` (troca de idioma e bandeiras) e `traducao-en.js` (os textos em inglês).
 - `dados/interactive-dados.js`: preços de heritage, Talents e Defenses, a lista de challenges e as tags de 38 mil personagens, tirados do Interactive.
-- `ferramentas/atualizar-dados.bat`: baixa os dados do Interactive de novo e refaz a página (precisa do [Node.js](https://nodejs.org)). Rode quando o Interactive ganhar personagens ou perks novos.
+- `.github/workflows/atualizar-dados.yml`: toda segunda-feira, o GitHub Actions baixa os dados do Interactive. Se nada mudou, não faz nada; se mudou, roda os testes, grava os dados novos e publica o site de novo, sem tirar o site do ar.
+- `.github/workflows/site.yml`: publica o site no GitHub Pages a cada mudança na `main`, depois dos testes.
+- `ferramentas/atualizar-dados.bat`: o mesmo que o workflow, no PC (precisa do [Node.js](https://nodejs.org)). Serve para uma cópia baixada; se nada mudou no Interactive, não grava nada.
 - `ferramentas/montar.mjs`: junta `fonte/` e os dados em `WaifuCatalogBuildFix.html` (`node montar.mjs`, dentro de `ferramentas`).
 - `ferramentas/testes.mjs`: testes das contas e de Meus personagens (`node testes.mjs`, dentro de `ferramentas`). Também confere se a página está em dia com `fonte/`. Não edite `WaifuCatalogBuildFix.html` à mão: edite `fonte/` e rode `node montar.mjs`.
+- `ferramentas/traducoes.mjs`: lista os textos sem tradução em inglês (`node traducoes.mjs`). Os textos ficam em português no código, dentro de `tr('...')`, e a tradução fica em `fonte/traducao-en.js`, com o texto em português como chave. O `montar.mjs` avisa quando falta alguma.
+
+---
+
+Ferramenta de fã, sem ligação oficial com o Waifu Catalog. Dados e fórmulas do [Waifu Catalog Interactive](https://waifu-catalog.neocities.org).
+
+Feito com ❤️ por [MrMarkinBoladao](https://github.com/MrMarkinBoladao).
