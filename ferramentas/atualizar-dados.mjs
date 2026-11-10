@@ -3,6 +3,9 @@
 // Uso: node atualizar-dados.mjs            -> baixa os arquivos do site
 //      node atualizar-dados.mjs <pasta>    -> usa index.js, characters.js e userCharacters.js já baixados
 //
+// Se o Interactive não mudou desde a última vez, não grava nada: o GitHub Actions roda isto toda semana
+// (.github/workflows/atualizar-dados.yml) e só faz commit quando um arquivo muda.
+//
 // Só precisa do Node.js. O leitor de JavaScript (acorn, licença MIT) vem junto, na pasta vendor/,
 // porque o npm não grava direito dentro do Google Drive.
 
@@ -157,6 +160,32 @@ function extrairPersonagens(src) {
   return JSON.parse(json)
 }
 
+// Os dados já gravados em dados/interactive-dados.js, sem a data (null se o arquivo não existe ou não abre).
+function dadosAtuaisSemData() {
+  try {
+    const m = fs.readFileSync(SAIDA, 'utf8').match(/^window\.WC_DADOS = (\{.*\});\s*$/m)
+    if (!m) return null
+    const d = JSON.parse(m[1])
+    delete d.geradoEm
+    return JSON.stringify(d)
+  } catch (e) {
+    return null
+  }
+}
+function semData(dados) {
+  const d = { ...dados }
+  delete d.geradoEm
+  return JSON.stringify(d)
+}
+
+// Grava só se o conteúdo mudou. Devolve true quando gravou.
+function gravarSeMudou(arquivo, texto) {
+  if (fs.existsSync(arquivo) && fs.readFileSync(arquivo, 'utf8') === texto) return false
+  fs.mkdirSync(path.dirname(arquivo), { recursive: true })
+  fs.writeFileSync(arquivo, texto, 'utf8')
+  return true
+}
+
 // Só as tags que a ferramenta usa: as 17 de Defense (Defense Rebates) e as que batem com árvores de heritage.
 const TAGS_UTEIS = new Set(['st', 'hr', 'hz', 'mt', 'cl', 'ml', 'ps', 'bj', 'dr', 'id', 'pl', 'ur', 'cr', 'sc', 'di', 'fm', 'tm', 'dg', 'th', 'ot', 'pp', 'pi', 'cu', 'mm'])
 
@@ -189,16 +218,19 @@ async function main() {
 
   const hoje = new Date().toISOString().slice(0, 10)
   const dados = { geradoEm: hoje, fonte: 'https://waifu-catalog.neocities.org', heritages, talents, defenses, perks, challenges: challenges.length >= 10 ? challenges : undefined, mundos, personagens }
-  const texto = `// Gerado por ferramentas/atualizar-dados.mjs em ${hoje}, a partir do Interactive (${dados.fonte}).\n`
-    + '// Não edite à mão: rode ferramentas/atualizar-dados.bat para refazer.\n'
-    + `window.WC_DADOS = ${JSON.stringify(dados)};\n`
-  fs.mkdirSync(path.dirname(SAIDA), { recursive: true })
-  fs.writeFileSync(SAIDA, texto, 'utf8')
-  console.log(`Pronto: ${heritages.length} perks de heritage, ${perks.length} outros perks, ${Object.keys(talents).length} talents, ${Object.keys(defenses).length} defenses, ${challenges.length} challenges, ${personagens.length} personagens.`)
-  console.log(`Arquivo: ${SAIDA} (${(texto.length / 1024 / 1024).toFixed(1)} MB)`)
-  // A página leva os dados dentro dela: refaz para entrarem os novos.
-  fs.writeFileSync(PAGINA, montar(), 'utf8')
-  console.log(`Página refeita: ${PAGINA}`)
+  console.log(`Lidos: ${heritages.length} perks de heritage, ${perks.length} outros perks, ${Object.keys(talents).length} talents, ${Object.keys(defenses).length} defenses, ${challenges.length} challenges, ${personagens.length} personagens.`)
+  if (dadosAtuaisSemData() === semData(dados)) {
+    console.log('Nada novo no Interactive: os dados continuam os mesmos.')
+  } else {
+    const texto = `// Gerado por ferramentas/atualizar-dados.mjs em ${hoje}, a partir do Interactive (${dados.fonte}).\n`
+      + '// Não edite à mão: rode ferramentas/atualizar-dados.bat para refazer.\n'
+      + `window.WC_DADOS = ${JSON.stringify(dados)};\n`
+    gravarSeMudou(SAIDA, texto)
+    console.log(`Dados novos gravados: ${SAIDA} (${(texto.length / 1024 / 1024).toFixed(1)} MB)`)
+  }
+  // A página leva os dados dentro dela: refaz se algo mudou (dados novos ou arquivos de fonte/).
+  if (gravarSeMudou(PAGINA, montar())) console.log(`Página refeita: ${PAGINA}`)
+  else console.log('A página já estava em dia.')
 }
 
 main().catch((e) => { console.error(`ERRO: ${e.message}`); process.exit(1) })

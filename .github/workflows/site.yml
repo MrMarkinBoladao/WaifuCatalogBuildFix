@@ -1,0 +1,52 @@
+# Publica o Caderno do Contractor no GitHub Pages: https://mrmarkinboladao.github.io/WaifuCatalogBuildFix/
+# Roda a cada push na main, à mão (aba Actions → "Site" → Run workflow) e quando o atualizar-dados.yml
+# grava dados novos. Antes de publicar, roda os testes: se falharem, o site fica na versão anterior.
+name: Site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    # Um deploy por vez; o que estiver no meio termina antes do próximo começar.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      # Sempre a main mais nova: quando vem do atualizar-dados.yml, o commit com os dados novos acabou de entrar.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Testes
+        run: node ferramentas/testes.mjs
+
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp WaifuCatalogBuildFix.html _site/index.html
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,7 @@
+# Pasta que o workflow do GitHub Pages monta (.github/workflows/site.yml)
+_site/
+node_modules/
+*.bak
+.DS_Store
+Thumbs.db
+desktop.ini

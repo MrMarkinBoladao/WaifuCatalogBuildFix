@@ -1,0 +1,73 @@
+# Uma vez por semana, baixa os dados do Waifu Catalog Interactive (o mesmo que ferramentas/atualizar-dados.bat).
+# Se nada mudou, termina sem commit. Se mudou, roda os testes, faz o commit na main e publica o site de novo.
+# Também roda à mão: aba Actions → "Atualizar dados do Interactive" → Run workflow.
+name: Atualizar dados do Interactive
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # segunda-feira, 06:17 UTC (03:17 em Brasília)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atualizar-dados
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      mudou: ${{ steps.commit.outputs.mudou }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Baixar os dados do Interactive
+        run: node ferramentas/atualizar-dados.mjs
+
+      - name: Ver se algo mudou
+        id: diff
+        run: |
+          if git diff --quiet -- dados/interactive-dados.js WaifuCatalogBuildFix.html; then
+            echo "Nada novo no Interactive: sem commit."
+            echo "mudou=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --stat
+            echo "mudou=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Os testes conferem as contas com os dados novos. Se falharem, nada é gravado e o GitHub avisa por e-mail.
+      - name: Testes
+        if: steps.diff.outputs.mudou == 'true'
+        run: node ferramentas/testes.mjs
+
+      - name: Commit dos dados novos
+        id: commit
+        run: |
+          if [ "${{ steps.diff.outputs.mudou }}" != "true" ]; then
+            echo "mudou=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dados/interactive-dados.js WaifuCatalogBuildFix.html
+          git commit -m "Atualiza os dados do Interactive ($(date -u +%Y-%m-%d))"
+          git push
+          echo "mudou=true" >> "$GITHUB_OUTPUT"
+
+  # Um push feito pelo GITHUB_TOKEN não dispara outros workflows, então o site é publicado daqui.
+  site:
+    needs: atualizar
+    if: needs.atualizar.outputs.mudou == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/site.yml
