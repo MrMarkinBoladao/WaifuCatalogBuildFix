@@ -4,7 +4,7 @@
  * Lê o "Copy Text of Build" do Interactive, refaz as contas e devolve o texto corrigido.
  * Funciona no navegador (window.WCFix) e no Node (globalThis.WCFix). Não tem dependências.
  *
- * Regras usadas (resumo do repositório coletania-fanfics-markin, pasta waifu-catalog/referencia):
+ * Regras usadas (resumo do documento oficial do Waifu Catalog e do Interactive):
  *  - Couple's Account: só se paga a mais cara das duas origens; heritage é comprada por pessoa,
  *    e cada um compra pela metade (depois de todos os descontos, sem o teto de 80%) a heritage
  *    que o outro já tem; Template Stacking e Waifu Perks são por pessoa; o resto vale para os dois.
@@ -28,6 +28,11 @@
  */
 (function (raiz) {
   'use strict'
+
+  // Os avisos e as mudanças passam por tr(): em inglês viram a tradução (fonte/idiomas.js); sem o módulo de
+  // idiomas, como nos testes, ficam em português. O texto da build (para a LLM) é sempre em inglês.
+  const tr = (texto, campos) => (raiz.WCIdioma ? raiz.WCIdioma.t(texto, campos)
+    : (campos ? String(texto).replace(/\{(\w+)\}/g, (m, k) => (campos[k] != null ? String(campos[k]) : m)) : texto))
 
   // ------------------------------------------------------------------ constantes
 
@@ -234,17 +239,17 @@
   function arquetipoDaArvore(arvore) { return arvore === 'Dragon (Old)' ? 'Dragon' : (arvore || null) }
   function curtoDefesa(nome) { return String(nome || '').replace(/ Defense$/, '') }
   function semPrefixo(nome) { return String(nome || '').replace(/^You as\s+/i, '').replace(/^Your SO(?:\s+as\b|\s*:)?\s*/i, '').trim() }
-  // "Marcos as Tatsumi" -> "Tatsumi": o nome que se procura no banco de personagens.
+  // "Alex as Natsu Dragneel" -> "Natsu Dragneel": o nome que se procura no banco de personagens.
   function personagemDoNome(nome) {
     const s = semPrefixo(nome)
     const m = s.match(/^(.+?) as (.+)$/)
     return m ? m[2].trim() : s
   }
-  // O nome que você escolheu para o contractor ("Kael"). No texto, ele fica no lugar de "You" e "Your SO".
+  // O nome que você escolheu para o contractor ("Alex"). No texto, ele fica no lugar de "You" e "Your SO".
   function apelidoDe(p) { return String((p && p.apelido) || '').replace(/\s+/g, ' ').trim() }
-  // Quem a linha de origem diz que é: "Marcos as Tatsumi" -> "Marcos"; sem " as ", vazio.
+  // Quem a linha de origem diz que é: "Alex as Natsu Dragneel" -> "Alex"; sem " as ", vazio.
   function quemDaLinha(nome) { const m = String(nome || '').match(/^(.+?) as (.+)$/); return m ? m[1].trim() : '' }
-  // "Kael as Rimuru Tempest" quando há nome escolhido; sem ele, o nome como está.
+  // "Alex as Natsu Dragneel" quando há nome escolhido; sem ele, o nome como está.
   function nomeComApelido(p) { const ap = apelidoDe(p); return ap ? `${ap} as ${personagemDoNome(p.nome)}` : p.nome }
 
   // ------------------------------------------------------------------ leitura do texto
@@ -429,7 +434,7 @@
           if (L.nome === 'Challenges' && !md.challengesCab) md.challengesCab = L
           break
         case 'origem':
-          // Uma segunda linha de origem é a do SO, escrita à mão ("Karina as Elaina (Possess) of T6 from ...").
+          // Uma segunda linha de origem é a do SO, escrita à mão ("Sam as Hino Rei (Possess) of T7 from ...").
           if (!md.origem) md.origem = L
           else if (!md.origemSO) { md.origemSO = L; L.tipo = 'origemSO' }
           break
@@ -1183,12 +1188,12 @@
     }
   }
 
-  // A linha da origem do SO, no formato da do contractor 1: "Alphin as Elysia (Possess) of T9".
+  // A linha da origem do SO, no formato da do contractor 1: "Sam as Tsukino Usagi (Possess) of T9".
   // O mundo vai para o resumo do fim; comMundo = true quando o resumo está desligado, para ele não se perder.
   function textoOrigemSO(so, comMundo) {
     const mundo = comMundo && so.mundo ? ` from ${so.mundo}` : ''
     const ap = apelidoDe(so)
-    // "Karina as Elaina": o nome já vem escrito na build.
+    // "Sam as Hino Rei": o nome já vem escrito na build.
     const quem = ap ? nomeComApelido(so) : (quemDaLinha(so.nome) ? so.nome : `Your SO as ${so.nome}`)
     const rotulo = ap || 'Your SO'
     const entre = normalizar(ap) === normalizar(so.nome) ? '' : ` (${so.nome})`
@@ -1202,7 +1207,7 @@
   }
 
   // Troca "You" e "Your SO" pelo nome escolhido em toda a build: na origem do contractor 1 e nas
-  // marcas entre colchetes ("Template Stacking I [You as Rimuru Tempest has …]").
+  // marcas entre colchetes ("Template Stacking I [You as Natsu Dragneel has …]").
   function aplicarApelidos(ed, modelo, c1, so) {
     const ap1 = apelidoDe(c1)
     const ap2 = so ? apelidoDe(so) : ''
@@ -1262,37 +1267,37 @@
     const fechado = !!chargen.encerrado
     const foto = fechado ? lerFoto(chargen.foto, cfg, banco) : null
 
-    if (modelo.jaCorrigido) avisos.push({ nivel: 'erro', texto: 'Este texto já passou por esta ferramenta. Cole o texto original do Interactive ("Copy Text of Build"), senão as correções entram duas vezes.' })
-    if (banco.semDados) avisos.push({ nivel: 'aviso', texto: 'O arquivo dados/interactive-dados.js não carregou. Sem ele não dá para saber a árvore de cada heritage nem as tags dos personagens: marque as tags à mão.' })
-    if (modelo.budget == null) avisos.push({ nivel: 'erro', texto: 'Não achei a linha "Starting budget". Cole o texto inteiro do "Copy Text of Build".' })
+    if (modelo.jaCorrigido) avisos.push({ nivel: 'erro', texto: tr('Este texto já passou por esta ferramenta. Cole o texto original do Interactive ("Copy Text of Build"), senão as correções entram duas vezes.') })
+    if (banco.semDados) avisos.push({ nivel: 'aviso', texto: tr('O arquivo dados/interactive-dados.js não carregou. Sem ele não dá para saber a árvore de cada heritage nem as tags dos personagens: marque as tags à mão.') })
+    if (modelo.budget == null) avisos.push({ nivel: 'erro', texto: tr('Não achei a linha "Starting budget". Cole o texto inteiro do "Copy Text of Build".') })
 
     // --- Conferência do texto original
     for (const e of modelo.conferenciaSaldos.erros.slice(0, 8)) {
       const como = op.manterDiferencas
-        ? 'A diferença foi mantida no texto corrigido, como você pediu.'
-        : 'O texto corrigido refaz o saldo pelo custo escrito na linha. Se a diferença é um custo que o texto não mostra, ligue "Manter as diferenças que o texto não explica".'
-      avisos.push({ nivel: 'erro', texto: `A conta não fecha em "${e.linha.raw.trim()}": o saldo devia ser [${fmt(e.esperado)}], mas o texto mostra [${fmt(e.mostrado)}] (diferença de ${comSinal(e.mostrado - e.esperado)}). ${como}` })
+        ? tr('A diferença foi mantida no texto corrigido, como você pediu.')
+        : tr('O texto corrigido refaz o saldo pelo custo escrito na linha. Se a diferença é um custo que o texto não mostra, ligue "Manter as diferenças que o texto não explica".')
+      avisos.push({ nivel: 'erro', texto: tr('A conta não fecha em "{v1}": o saldo devia ser [{esperado}], mas o texto mostra [{mostrado}] (diferença de {v4}). {como}', { v1: e.linha.raw.trim(), esperado: fmt(e.esperado), mostrado: fmt(e.mostrado), v4: comSinal(e.mostrado - e.esperado), como }) })
     }
-    if (modelo.conferenciaSaldos.erros.length > 8) avisos.push({ nivel: 'erro', texto: `Mais ${modelo.conferenciaSaldos.erros.length - 8} linhas com o saldo errado.` })
+    if (modelo.conferenciaSaldos.erros.length > 8) avisos.push({ nivel: 'erro', texto: tr('Mais {v1} linhas com o saldo errado.', { v1: modelo.conferenciaSaldos.erros.length - 8 }) })
     // O DRX start trava a Intensity em 10: o Interactive não soma a linha "DRX start 10" à base.
     if (modelo.drx) {
-      if (modelo.intensidade != null && Math.abs(modelo.intensidade - 10) > 0.01) avisos.push({ nivel: 'aviso', texto: `Intensity: o cabeçalho diz [${fmt(modelo.intensidade)}], mas o DRX start trava a Intensity em 10.` })
+      if (modelo.intensidade != null && Math.abs(modelo.intensidade - 10) > 0.01) avisos.push({ nivel: 'aviso', texto: tr('Intensity: o cabeçalho diz [{intensidade}], mas o DRX start trava a Intensity em 10.', { intensidade: fmt(modelo.intensidade) }) })
     }
     else if (modelo.intensidade != null && modelo.opcoesInt.length) {
       const soma = 1 + modelo.opcoesInt.reduce((a, L) => a + L.valor, 0)
-      if (Math.abs(soma - modelo.intensidade) > 0.01) avisos.push({ nivel: 'erro', texto: `Intensity: o cabeçalho diz [${fmt(modelo.intensidade)}], mas 1 + a soma das cláusulas dá ${fmt(soma)}.` })
+      if (Math.abs(soma - modelo.intensidade) > 0.01) avisos.push({ nivel: 'erro', texto: tr('Intensity: o cabeçalho diz [{intensidade}], mas 1 + a soma das cláusulas dá {soma}.', { intensidade: fmt(modelo.intensidade), soma: fmt(soma) }) })
     }
     if (modelo.drx) {
       const dr = drDaBuild(modelo)
-      const tabela = modelo.budget != null ? ` O "Starting budget ${fmt(modelo.budget)}" do texto é só o número da tabela${dr ? ` (${modelo.mundo || 'o mundo'} é DR ${dr} na Intensity 10)` : ''} e não entra na conta.` : ''
-      avisos.push({ nivel: 'info', texto: `DRX start: a build começa em Danger Rating X (o DR 11 do Interactive), sem budget inicial. As verbas da criação são Heritage 400, Catch-a-Ride 545, Demiplanes & Dungeons 500 e 600 para os outros perks oficiais.${tabela}` })
-      avisos.push({ nivel: 'info', texto: 'DRX start: captura e venda ficam travadas nos valores da Intensity 10, e não há Defense Rebates, porque as Defenses já vêm de graça.' })
+      const tabela = modelo.budget != null ? tr(' O "Starting budget {budget}" do texto é só o número da tabela{v2} e não entra na conta.', { budget: fmt(modelo.budget), v2: dr ? tr(' ({v1} é DR {dr} na Intensity 10)', { v1: modelo.mundo || tr('o mundo'), dr }) : '' }) : ''
+      avisos.push({ nivel: 'info', texto: tr('DRX start: a build começa em Danger Rating X (o DR 11 do Interactive), sem budget inicial. As verbas da criação são Heritage 400, Catch-a-Ride 545, Demiplanes & Dungeons 500 e 600 para os outros perks oficiais.{tabela}', { tabela }) })
+      avisos.push({ nivel: 'info', texto: tr('DRX start: captura e venda ficam travadas nos valores da Intensity 10, e não há Defense Rebates, porque as Defenses já vêm de graça.') })
     }
     else if (modelo.budget != null && (modelo.intensidade != null || modelo.legacy)) {
       const I = intensidadeDoBudget(modelo)
       const dr = drDaBuild(modelo)
-      if (dr) avisos.push({ nivel: 'info', texto: `Budget ${fmt(modelo.budget)} na Intensity ${fmt(I)}${modelo.legacy ? ' (Legacy Difficulty usa a linha 1)' : ''}: mundo de DR ${dr}, pela tabela do Interactive.` })
-      else if (modelo.budget > 0) avisos.push({ nivel: 'aviso', texto: `O budget ${fmt(modelo.budget)} não bate com nenhum DR na Intensity ${fmt(I)} da tabela do Interactive. Pode ser regra de um Challenge ou do Patron: confira.` })
+      if (dr) avisos.push({ nivel: 'info', texto: tr('Budget {budget} na Intensity {I}{v3}: mundo de DR {dr}, pela tabela do Interactive.', { budget: fmt(modelo.budget), I: fmt(I), v3: modelo.legacy ? tr(' (Legacy Difficulty usa a linha 1)') : '', dr }) })
+      else if (modelo.budget > 0) avisos.push({ nivel: 'aviso', texto: tr('O budget {budget} não bate com nenhum DR na Intensity {I} da tabela do Interactive. Pode ser regra de um Challenge ou do Patron: confira.', { budget: fmt(modelo.budget), I: fmt(I) }) })
     }
 
     // --- Heritage: cópias, donos e árvores
@@ -1301,7 +1306,7 @@
     modelo.heritage.forEach((L) => {
       const h = banco.heritage(L.titulo, L.custo)
       const arquetipo = h ? arquetipoDaArvore(h.arvore) : null
-      if (!h && L.custo > 0 && !banco.semDados) avisos.push({ nivel: 'aviso', texto: `Não achei "${L.titulo}" na lista de heritages do Interactive: o desconto de arquétipo não entra nela.` })
+      if (!h && L.custo > 0 && !banco.semDados) avisos.push({ nivel: 'aviso', texto: tr('Não achei "{titulo}" na lista de heritages do Interactive: o desconto de arquétipo não entra nela.', { titulo: L.titulo }) })
       const k = chaveHeritage(modelo, L)
       const dono = casal ? (cfg.donos[k] || 'c1') : 'c1'
       const linha = { L, chave: k, info: h, arquetipo, dono, copias: [] }
@@ -1324,7 +1329,7 @@
     const arqRecalc = arred(Object.values(arq).reduce((a, r) => a + r.total, 0))
     const usarArq = casal ? true : (cfg.usar.arquetipo != null ? !!cfg.usar.arquetipo : mexeuArq)
 
-    if (!casal && modelo.descArquetipo && c1.tipoOrigem === 'Walk-In' && !c1.swap) avisos.push({ nivel: 'aviso', texto: 'O Interactive deu desconto de arquétipo a um Walk-In sem Power Swap. O documento não dá: Walk-In não paga nada para ser quem é.' })
+    if (!casal && modelo.descArquetipo && c1.tipoOrigem === 'Walk-In' && !c1.swap) avisos.push({ nivel: 'aviso', texto: tr('O Interactive deu desconto de arquétipo a um Walk-In sem Power Swap. O documento não dá: Walk-In não paga nada para ser quem é.') })
 
     // Regras de Intensity sobre heritage
     const opcoes = modelo.opcoesInt.map(L => normalizar(L.nome))
@@ -1332,8 +1337,8 @@
     const banidas = opcoes.includes('heritages banned')
     for (const id of casal ? ['c1', 'so'] : ['c1']) {
       const arvores = [...new Set(compras.filter(c => c.comprador === id && c.arquetipo).map(c => c.arquetipo))]
-      if (umaSo && arvores.length > 1) avisos.push({ nivel: 'erro', texto: `${nomeDe(id)} tem perks de ${arvores.length} heritages (${arvores.join(', ')}), mas a build tem Only One: uma heritage por pessoa.` })
-      if (banidas && arvores.length) avisos.push({ nivel: 'erro', texto: `${nomeDe(id)} tem heritage, mas a build tem Heritages Banned.` })
+      if (umaSo && arvores.length > 1) avisos.push({ nivel: 'erro', texto: tr('{v1} tem perks de {length} heritages ({arvores}), mas a build tem Only One: uma heritage por pessoa.', { v1: nomeDe(id), length: arvores.length, arvores: arvores.join(', ') }) })
+      if (banidas && arvores.length) avisos.push({ nivel: 'erro', texto: tr('{v1} tem heritage, mas a build tem Heritages Banned.', { v1: nomeDe(id) }) })
     }
 
     // --- Talents e Defenses (contagem atual, com brindes da 2ª cópia se a opção estiver ligada)
@@ -1353,7 +1358,7 @@
       }
     }
     const rep = calcularRepetidos(talents, defenses, banco)
-    for (const t of rep.semPreco) avisos.push({ nivel: 'aviso', texto: `Não sei o preço de "${t}" (repetido): ficou fora da conta de repetidos recalculada.` })
+    for (const t of rep.semPreco) avisos.push({ nivel: 'aviso', texto: tr('Não sei o preço de "{t}" (repetido): ficou fora da conta de repetidos recalculada.', { t }) })
     const mudouContagem = brindesAdicionados.length > 0
     const usarTal = cfg.usar.talents != null ? cfg.usar.talents : mudouContagem
     const usarDef = cfg.usar.defenses != null ? cfg.usar.defenses : mudouContagem
@@ -1386,7 +1391,7 @@
     if (mortos.length && !rebatesDesligados) {
       const comMortos = calcularRebates(defesasBuild, [...pessoasRebate, ...(comSO ? [pessoaRebate(so, so.nome)] : []), ...mortos.map(pessoaCompanionRebate)], banco)
       const dif = arred(comMortos.total - rebCom.total)
-      if (dif > 0.01) avisos.push({ nivel: 'info', texto: `Quem está morto não dá Defense Rebates: ${mortos.map(c => c.nome).join(', ')} (${comSinal(-dif)}). O Interactive ainda conta.` })
+      if (dif > 0.01) avisos.push({ nivel: 'info', texto: tr('Quem está morto não dá Defense Rebates: {mortos} ({v2}). O Interactive ainda conta.', { mortos: mortos.map(c => c.nome).join(', '), v2: comSinal(-dif) }) })
     }
     const rebTexto = modelo.rebates ? modelo.rebates.valor : 0
     const rebRecalc = rebCom.total
@@ -1396,7 +1401,7 @@
     if (['Possess', 'Substitute'].includes(c1.tipoOrigem) && c1.personagem == null && !(c1.tagsDef || []).length) semTags.push(c1.nome)
     for (const c of cfg.companions) if (!c.vendido && c.personagem == null && !(c.tagsDef || []).length) semTags.push(c.nome)
     if (casal && so.linha != null && so.personagem == null && !(so.tagsDef || []).length && so.tipoOrigem !== 'Drop-In') semTags.push(so.nome)
-    if (semTags.length && modelo.defenses.length && !rebatesDesligados) avisos.push({ nivel: 'aviso', texto: `Não achei ${semTags.join(', ')} no banco do Interactive nem em Meus personagens. Crie ou importe o personagem em Meus personagens, ou marque as tags de Defense à mão; senão os Defense Rebates dessas pessoas ficam de fora.` })
+    if (semTags.length && modelo.defenses.length && !rebatesDesligados) avisos.push({ nivel: 'aviso', texto: tr('Não achei {semTags} no banco do Interactive nem em Meus personagens. Crie ou importe o personagem em Meus personagens, ou marque as tags de Defense à mão; senão os Defense Rebates dessas pessoas ficam de fora.', { semTags: semTags.join(', ') }) })
 
     // Tags e arquétipos marcados à mão que mudam a conta: para ninguém ganhar desconto sem querer.
     const maoDef = []
@@ -1404,18 +1409,18 @@
       for (const t of p.tagsMais || []) {
         const d = rebCom.porDefesa[TAG_DEFESA[t]]
         const q = d && d.quem.find(x => x.id === p.id)
-        if (q) maoDef.push(`${p.nome}, ${curtoDefesa(TAG_DEFESA[t])} +${fmt(q.valor)} (a pessoa ${CONDICAO_DEFESA[t]})`)
+        if (q) maoDef.push(tr('{nome}, {defesa} +{valor} (a pessoa {condicao})', { nome: p.nome, defesa: curtoDefesa(TAG_DEFESA[t]), valor: fmt(q.valor), condicao: tr(CONDICAO_DEFESA[t]) }))
       }
     }
-    if (maoDef.length) avisos.push({ nivel: 'aviso', texto: `Tags de Defense marcadas à mão nesta build: ${maoDef.join('; ')}. Só vale se for verdade no cânone.` })
+    if (maoDef.length) avisos.push({ nivel: 'aviso', texto: tr('Tags de Defense marcadas à mão nesta build: {maoDef}. Só vale se for verdade no cânone.', { maoDef: maoDef.join('; ') }) })
     const maoArq = []
     for (const [p, id] of [[c1, 'c1'], ...(casal ? [[so, 'so']] : [])]) {
       const usadas = (arq[id] && arq[id].usados) || []
-      for (const a of (p.arqMais || []).filter(x => usadas.includes(x))) maoArq.push(`${p.nome} como ${a}`)
+      for (const a of (p.arqMais || []).filter(x => usadas.includes(x))) maoArq.push(tr('{nome} como {a}', { nome: p.nome, a }))
     }
-    if (maoArq.length) avisos.push({ nivel: 'aviso', texto: `Arquétipo marcado à mão nesta build: ${maoArq.join('; ')}. Dá o desconto de arquétipo nessa árvore; só vale se a origem combina com ela.` })
+    if (maoArq.length) avisos.push({ nivel: 'aviso', texto: tr('Arquétipo marcado à mão nesta build: {maoArq}. Dá o desconto de arquétipo nessa árvore; só vale se a origem combina com ela.', { maoArq: maoArq.join('; ') }) })
     const deMeus = todas.filter(p => p.meu && (p.tagsDef || []).some(t => { const d = rebCom.porDefesa[TAG_DEFESA[t]]; return d && d.quem.some(x => x.id === p.id) }))
-    if (deMeus.length) avisos.push({ nivel: 'info', texto: `Tags de Meus personagens (marcadas por você) entram nos Defense Rebates: ${deMeus.map(p => p.nome).join(', ')}.` })
+    if (deMeus.length) avisos.push({ nivel: 'info', texto: tr('Tags de Meus personagens (marcadas por você) entram nos Defense Rebates: {deMeus}.', { deMeus: deMeus.map(p => p.nome).join(', ') }) })
 
     // ============================================================ DRX start e chargen
     // A heritage, para a verba dela: todas as cópias, menos o desconto de arquétipo e a metade da Couple's Account.
@@ -1438,10 +1443,10 @@
     ] : []
     if (drx) {
       for (const a of drx.avisos) avisos.push(a)
-      if (casal && !so.drx) avisos.push({ nivel: 'aviso', texto: `No DRX start, a Couple's Account é com a companion de tier X ou Y${drx.companion && !drx.companion.perkCompanion ? ` (${drx.companion.nome})` : ''}. Escolha ela como SO em Pessoas e tags.` })
-      if (!fechado) avisos.push({ nivel: 'info', texto: `Sobram ${fmt(drx.sobra)} das verbas do DRX start. Quando o chargen acabar, eles vão para a conta normal e só podem ser usados 7 dias (168 horas) depois. Marque "Chargen encerrado" quando a build estiver pronta.` })
-      else if (!seteDias) avisos.push({ nivel: 'info', texto: `Chargen encerrado: as sobras do DRX start (${fmt(drx.sobra)}) estão na conta normal, travadas até 7 dias (168 horas) depois do fim do chargen. Marque "7 dias passaram" quando isso acontecer na história.` })
-      else avisos.push({ nivel: 'info', texto: `As sobras do DRX start (${fmt(drx.sobra)}) já estão livres na conta normal: os 7 dias passaram.` })
+      if (casal && !so.drx) avisos.push({ nivel: 'aviso', texto: tr('No DRX start, a Couple\'s Account é com a companion de tier X ou Y{v1}. Escolha ela como SO em Pessoas e tags.', { v1: drx.companion && !drx.companion.perkCompanion ? ` (${drx.companion.nome})` : '' }) })
+      if (!fechado) avisos.push({ nivel: 'info', texto: tr('Sobram {sobra} das verbas do DRX start. Quando o chargen acabar, eles vão para a conta normal e só podem ser usados 7 dias (168 horas) depois. Marque "Chargen encerrado" quando a build estiver pronta.', { sobra: fmt(drx.sobra) }) })
+      else if (!seteDias) avisos.push({ nivel: 'info', texto: tr('Chargen encerrado: as sobras do DRX start ({sobra}) estão na conta normal, travadas até 7 dias (168 horas) depois do fim do chargen. Marque "7 dias passaram" quando isso acontecer na história.', { sobra: fmt(drx.sobra) }) })
+      else avisos.push({ nivel: 'info', texto: tr('As sobras do DRX start ({sobra}) já estão livres na conta normal: os 7 dias passaram.', { sobra: fmt(drx.sobra) }) })
     }
     const saldoTravado = drx && fechado && !seteDias ? drx.sobra : 0
 
@@ -1471,23 +1476,23 @@
       const soDRX = !!(modelo.drx && so.drx)
       // 1. O SO sai de Companions bought e vira a origem do contractor 2.
       const linhaOrigemSO = ed.nova(`${textoOrigemSO(so, !op.resumoNoFim)} -${fmt(so.custoOrigem || 0)}`, -(so.custoOrigem || 0))
-      if (soDRX) mudancas.push(`${so.nome} é a companion do DRX start e a outra dona da Couple's Account: continua em "Companions bought" e conta como o contractor 2.`)
+      if (soDRX) mudancas.push(tr('{nome} é a companion do DRX start e a outra dona da Couple\'s Account: continua em "Companions bought" e conta como o contractor 2.', { nome: so.nome }))
       else if (so.fonte === 'comprado' && so.linha != null && modelo.compradosCab) {
         ed.remover(so.linha)
         const restantes = modelo.comprados.filter(L => L.i !== so.linha)
         const novoTotal = Math.max(0, arred(modelo.compradosCab.valor - (so.cobrado || 0)))
         if (!restantes.length) ed.remover(modelo.compradosCab.i)
         else ed.trocar(modelo.compradosCab.i, { texto: `Companions bought -${fmt(novoTotal)}`, delta: -novoTotal })
-        mudancas.push(`${so.nome} saiu de "Companions bought" (o Interactive cobrava ${fmt(so.cobrado || 0)}): agora é o contractor 2 da conta, o SO.`)
+        mudancas.push(tr('{nome} saiu de "Companions bought" (o Interactive cobrava {v2}): agora é o contractor 2 da conta, o SO.', { nome: so.nome, v2: fmt(so.cobrado || 0) }))
         blocoOrigem.push(linhaOrigemSO)
       }
       else if (so.fonte === 'origem' && so.linha != null) {
         // O SO já estava escrito como origem: a linha fica no lugar, com o preço cheio da origem dele.
         ed.trocar(so.linha, { texto: linhaOrigemSO.texto, delta: linhaOrigemSO.delta })
-        if (Math.abs((so.cobrado || 0) - (so.custoOrigem || 0)) > 0.01) mudancas.push(`A origem de ${so.nome} passa a mostrar o preço cheio (${fmt(so.custoOrigem || 0)}, antes ${fmt(so.cobrado || 0)}); a linha "only the more expensive origin" faz o desconto.`)
+        if (Math.abs((so.cobrado || 0) - (so.custoOrigem || 0)) > 0.01) mudancas.push(tr('A origem de {nome} passa a mostrar o preço cheio ({v2}, antes {v3}); a linha "only the more expensive origin" faz o desconto.', { nome: so.nome, v2: fmt(so.custoOrigem || 0), v3: fmt(so.cobrado || 0) }))
       }
       else {
-        avisos.push({ nivel: 'aviso', texto: 'Não achei o SO na build. Preencha o contractor 2 à mão (nome, origem, tier e preço da origem).' })
+        avisos.push({ nivel: 'aviso', texto: tr('Não achei o SO na build. Preencha o contractor 2 à mão (nome, origem, tier e preço da origem).') })
         blocoOrigem.push(linhaOrigemSO)
       }
       if (so.swap && !soDRX) blocoOrigem.push(ed.nova(`Power Swap to ${so.swap.nome}(T${tierTxt(so.swap.tier)}) [${so.nome}] -${fmt(so.swap.custo || 0)}`, -(so.swap.custo || 0)))
@@ -1500,7 +1505,7 @@
         reembolso = Math.min(c1Total, soTotal)
         if (reembolso > 0) {
           blocoOrigem.push(ed.nova(`Couple's Account: only the more expensive origin is paid (${c1.nome} ${fmt(c1Total)}, ${so.nome} ${fmt(soTotal)}) +${fmt(reembolso)}`, reembolso))
-          mudancas.push(`Só a origem mais cara é paga: ${c1.nome} ${fmt(c1Total)} e ${so.nome} ${fmt(soTotal)}. Volta ${fmt(reembolso)}.`)
+          mudancas.push(tr('Só a origem mais cara é paga: {nome} {c1Total} e {nome2} {soTotal}. Volta {reembolso}.', { nome: c1.nome, c1Total: fmt(c1Total), nome2: so.nome, soTotal: fmt(soTotal), reembolso: fmt(reembolso) }))
         }
       }
     }
@@ -1516,8 +1521,8 @@
       }
       if (Math.abs(arqRecalc - arqTexto) > 0.01 || casal) {
         const partes = Object.values(arq).filter(r => r.total > 0).map(r => `${r.nome} (${r.usados.join(', ')}) +${fmt(r.total)}`)
-        if (casal) mudancas.push(`Desconto de arquétipo separado por contractor: ${partes.join('; ') || 'nenhum'}. O Interactive dava +${fmt(arqTexto)}.`)
-        else mudancas.push(`Desconto de arquétipo: +${fmt(arqTexto)} → +${fmt(arqRecalc)}.`)
+        if (casal) mudancas.push(tr('Desconto de arquétipo separado por contractor: {v1}. O Interactive dava +{arqTexto}.', { v1: partes.join('; ') || tr('nenhum'), arqTexto: fmt(arqTexto) }))
+        else mudancas.push(tr('Desconto de arquétipo: +{arqTexto} → +{arqRecalc}.', { arqTexto: fmt(arqTexto), arqRecalc: fmt(arqRecalc) }))
       }
     }
 
@@ -1528,7 +1533,7 @@
         if (!meia) continue
         const primeiro = linha.copias.find(c => !c.metade)
         if (meia.meia > 0) blocoOrigem.push(ed.nova(`Couple's Account: half price for ${nomeDe(meia.comprador)} on ${linha.L.titulo}${linha.L.complexo}, which ${nomeDe(primeiro.comprador)} already has +${fmt(meia.meia)}`, meia.meia))
-        mudancas.push(`${linha.L.titulo}: os dois compram. ${nomeDe(primeiro.comprador)} paga ${fmt(primeiro.paga)}; ${nomeDe(meia.comprador)} paga ${fmt(meia.paga)} (metade de ${fmt(meia.custo - meia.desconto)}, o preço depois do desconto de arquétipo).`)
+        mudancas.push(tr('{titulo}: os dois compram. {v2} paga {paga}; {v4} paga {paga2} (metade de {v6}, o preço depois do desconto de arquétipo).', { titulo: linha.L.titulo, v2: nomeDe(primeiro.comprador), paga: fmt(primeiro.paga), v4: nomeDe(meia.comprador), paga2: fmt(meia.paga), v6: fmt(meia.custo - meia.desconto) }))
       }
     }
     if (blocoOrigem.length) ed.depois(ancora, ...blocoOrigem)
@@ -1547,13 +1552,13 @@
     if (brindesAdicionados.length) {
       aplicarBrindes(ed, modelo, talents, 'Talents')
       aplicarBrindes(ed, modelo, defenses, 'Defenses')
-      mudancas.push(`Brindes da 2ª cópia de heritage somados: ${brindesAdicionados.map(b => `${b.nome} (${b.de})`).join(', ')}.`)
+      mudancas.push(tr('Brindes da 2ª cópia de heritage somados: {brindesAdicionados}.', { brindesAdicionados: brindesAdicionados.map(b => `${b.nome} (${b.de})`).join(', ') }))
     }
 
     // 7. Repetidos (no DRX start com a DLC na verba de 600, os repetidos não contam: o passo 8b tira as linhas)
     const semRepetidos = !!drx && drx.modo === 'verba'
-    if (usarTal && !semRepetidos) trocarLinhaDesconto(ed, modelo, 'descTalents', 'Discounted for duplicate talents', rep.talents, 'Talents', mudancas, talTexto, 'Talents repetidos')
-    if (usarDef && !semRepetidos) trocarLinhaDesconto(ed, modelo, 'descDefenses', 'Discounted for duplicate defenses', rep.defenses, 'Defenses', mudancas, defTexto, 'Defenses repetidas')
+    if (usarTal && !semRepetidos) trocarLinhaDesconto(ed, modelo, 'descTalents', 'Discounted for duplicate talents', rep.talents, 'Talents', mudancas, talTexto, tr('Talents repetidos'))
+    if (usarDef && !semRepetidos) trocarLinhaDesconto(ed, modelo, 'descDefenses', 'Discounted for duplicate defenses', rep.defenses, 'Defenses', mudancas, defTexto, tr('Defenses repetidas'))
 
     // 8. Defense Rebates
     if (usarReb) {
@@ -1578,7 +1583,7 @@
     if (modelo.modsCab) {
       const mantidos = modelo.mods.filter(L => cfg.mods[chaveMod(L)] !== false)
       const tirados = modelo.mods.filter(L => cfg.mods[chaveMod(L)] === false)
-      for (const L of tirados) { ed.remover(L.i); mudancas.push(`Saiu de "Specific credit modifiers": "${L.desc}" (${comSinal(L.valor)}). ${casal ? 'A ferramenta já faz essa conta.' : ''}`.trim()) }
+      for (const L of tirados) { ed.remover(L.i); mudancas.push(tr('Saiu de "Specific credit modifiers": "{desc}" ({valor}). {v3}', { desc: L.desc, valor: comSinal(L.valor), v3: casal ? tr('A ferramenta já faz essa conta.') : '' }).trim()) }
       if (!mantidos.length) ed.remover(modelo.modsCab.i)
       else if (tirados.length) {
         const soma = arred(mantidos.reduce((a, L) => a + L.valor, 0))
@@ -1637,18 +1642,18 @@
     })
     const saldoFinal = saldo == null ? 0 : saldo
     const saldoOriginal = modelo.conferenciaSaldos.saldoFinalMostrado
-    if (saldoOriginal != null && Math.abs(saldoOriginal - saldoFinal) > 0.01) mudancas.push(`Saldo final: ${fmt(saldoOriginal)} → ${fmt(saldoFinal)}.`)
+    if (saldoOriginal != null && Math.abs(saldoOriginal - saldoFinal) > 0.01) mudancas.push(tr('Saldo final: {saldoOriginal} → {saldoFinal}.', { saldoOriginal: fmt(saldoOriginal), saldoFinal: fmt(saldoFinal) }))
     if (saldoFinal < 0) {
-      if (saldoTravado > 0) avisos.push({ nivel: 'erro', texto: `O saldo livre ficou negativo (${fmt(saldoFinal)}): o que foi comprado depois do chargen passou do que entrou na conta normal, e as sobras do DRX start (${fmt(saldoTravado)}) só liberam depois dos 7 dias.` })
-      else if (drx && !fechado) avisos.push({ nivel: 'erro', texto: `O saldo final ficou negativo (${fmt(saldoFinal)}): faltou verba do DRX start para alguma compra (veja os avisos das verbas).` })
-      else avisos.push({ nivel: 'erro', texto: `O saldo final ficou negativo (${fmt(saldoFinal)}): com saldo abaixo de zero ele não compra nada e entra em dívida.` })
+      if (saldoTravado > 0) avisos.push({ nivel: 'erro', texto: tr('O saldo livre ficou negativo ({saldoFinal}): o que foi comprado depois do chargen passou do que entrou na conta normal, e as sobras do DRX start ({saldoTravado}) só liberam depois dos 7 dias.', { saldoFinal: fmt(saldoFinal), saldoTravado: fmt(saldoTravado) }) })
+      else if (drx && !fechado) avisos.push({ nivel: 'erro', texto: tr('O saldo final ficou negativo ({saldoFinal}): faltou verba do DRX start para alguma compra (veja os avisos das verbas).', { saldoFinal: fmt(saldoFinal) }) })
+      else avisos.push({ nivel: 'erro', texto: tr('O saldo final ficou negativo ({saldoFinal}): com saldo abaixo de zero ele não compra nada e entra em dívida.', { saldoFinal: fmt(saldoFinal) }) })
     }
 
     const conferencia = [
-      { chave: 'arquetipo', rotulo: 'Desconto de arquétipo', texto: arqTexto, recalculado: arqRecalc, usado: usarArq, travado: casal, detalhe: Object.values(arq).map(r => `${r.nome}: teto ${fmt(r.pool)}${r.usados.length ? `, ${r.usados.join(', ')} +${fmt(r.total)}` : ', nada descontado'}`).join(' · ') },
-      { chave: 'talents', rotulo: 'Talents repetidos', texto: talTexto, recalculado: rep.talents, usado: usarTal, detalhe: talents.filter(t => t.qtd > 1 && !t.complexo).map(t => `${t.titulo} x${t.qtd}`).join(', ') },
-      { chave: 'defenses', rotulo: 'Defenses repetidas', texto: defTexto, recalculado: rep.defenses, usado: usarDef, detalhe: defenses.filter(t => t.qtd > 2).map(t => `${t.titulo} x${t.qtd}`).join(', ') },
-      { chave: 'rebates', rotulo: 'Defense Rebates', texto: rebTexto, recalculado: rebRecalc, usado: usarReb, detalhe: rebatesDesligados ? (modelo.drx ? 'desligados no DRX start' : 'desligados por Defense Rebates Disabled') : detalheRebates(rebCom) },
+      { chave: 'arquetipo', rotulo: tr('Desconto de arquétipo'), texto: arqTexto, recalculado: arqRecalc, usado: usarArq, travado: casal, detalhe: Object.values(arq).map(r => `${tr('{nome}: teto {pool}', { nome: r.nome, pool: fmt(r.pool) })}${r.usados.length ? `, ${r.usados.join(', ')} +${fmt(r.total)}` : tr(', nada descontado')}`).join(' · ') },
+      { chave: 'talents', rotulo: tr('Talents repetidos'), texto: talTexto, recalculado: rep.talents, usado: usarTal, detalhe: talents.filter(t => t.qtd > 1 && !t.complexo).map(t => `${t.titulo} x${t.qtd}`).join(', ') },
+      { chave: 'defenses', rotulo: tr('Defenses repetidas'), texto: defTexto, recalculado: rep.defenses, usado: usarDef, detalhe: defenses.filter(t => t.qtd > 2).map(t => `${t.titulo} x${t.qtd}`).join(', ') },
+      { chave: 'rebates', rotulo: 'Defense Rebates', texto: rebTexto, recalculado: rebRecalc, usado: usarReb, detalhe: rebatesDesligados ? (modelo.drx ? tr('desligados no DRX start') : tr('desligados por Defense Rebates Disabled')) : detalheRebates(rebCom) },
     ]
 
     return {
@@ -1721,7 +1726,7 @@
 
   function detalheRebates(r) {
     return Object.entries(r.porDefesa).filter(([, d]) => d.desconto > 0)
-      .map(([nome, d]) => `${nome.replace(/ Defense$/, '')} ${fmt(d.desconto)} (${d.quem.map(q => `${q.nome} ${fmt(q.valor)}`).join(', ')})`).join(' · ') || 'nenhum'
+      .map(([nome, d]) => `${nome.replace(/ Defense$/, '')} ${fmt(d.desconto)} (${d.quem.map(q => `${q.nome} ${fmt(q.valor)}`).join(', ')})`).join(' · ') || tr('nenhum')
   }
 
   // A linha da tabela de budget que vale para a build: Legacy Difficulty usa sempre a linha 1.
@@ -1772,7 +1777,7 @@
       a.base = a === pt ? base0 : baseOutros
       a.valor = a.aplicado ? arred(a.base * a.bonus) : 0
     }
-    const deQue = a => (metodo === 'legacy' ? `o budget do DR ${dr} na Intensity 1` : 'o budget da build') + (dobra && a !== pt ? ', dobrado pelo Power Trip' : '')
+    const deQue = a => (metodo === 'legacy' ? tr('o budget do DR {dr} na Intensity 1', { dr }) : tr('o budget da build')) + (dobra && a !== pt ? tr(', dobrado pelo Power Trip') : '')
     const linha = a => (a.aplicado
       ? `${a.titulo} (challenge bonus: ${fmt(a.bonus * 100)}% of ${fmt(a.base)}${metodo === 'legacy' ? ', legacy values' : ''}) +${fmt(a.valor)}`
       : `${a.titulo} free`)
@@ -1795,14 +1800,14 @@
     }
 
     for (const a of ativos) {
-      if (a.origem === 'adicionado') mudancas.push(`${a.titulo} entrou em Challenges.`)
-      if (a.aplicado) mudancas.push(`${a.titulo}: bônus de ${fmt(a.bonus * 100)}% sobre ${fmt(a.base)} (${deQue(a)}), +${fmt(a.valor)}.`)
+      if (a.origem === 'adicionado') mudancas.push(tr('{titulo} entrou em Challenges.', { titulo: a.titulo }))
+      if (a.aplicado) mudancas.push(tr('{titulo}: bônus de {v2}% sobre {base} ({v4}), +{valor}.', { titulo: a.titulo, v2: fmt(a.bonus * 100), base: fmt(a.base), v4: deQue(a), valor: fmt(a.valor) }))
     }
     for (const m of convertidas) {
       const a = ativos.find(x => normalizar(x.titulo) === normalizar(m.titulo))
       const antes = creditosDaMissao(m)
-      mudancas.push(`${m.titulo} saiu de Mission Rewards (${fmt(antes)}): o bônus agora fica na linha do challenge${a && a.aplicado ? ` (+${fmt(a.valor)})` : ''}.`)
-      if (a && a.aplicado && Math.abs(a.valor - antes) > 0.01) avisos.push({ nivel: 'aviso', texto: `${m.titulo}: em Mission Rewards estava ${fmt(antes)}; pela base escolhida na aba Challenges, o bônus é ${fmt(a.valor)}.` })
+      mudancas.push(tr('{titulo} saiu de Mission Rewards ({antes}): o bônus agora fica na linha do challenge{v3}.', { titulo: m.titulo, antes: fmt(antes), v3: a && a.aplicado ? ` (+${fmt(a.valor)})` : '' }))
+      if (a && a.aplicado && Math.abs(a.valor - antes) > 0.01) avisos.push({ nivel: 'aviso', texto: tr('{titulo}: em Mission Rewards estava {antes}; pela base escolhida na aba Challenges, o bônus é {valor}.', { titulo: m.titulo, antes: fmt(antes), valor: fmt(a.valor) }) })
     }
 
     // Requisitos de cada desafio, como o Interactive escreve.
@@ -1810,17 +1815,17 @@
     for (const a of ativos) {
       const c = a.info
       if (!c) continue
-      if (c.minDR && dr && dr < c.minDR) avisos.push({ nivel: 'erro', texto: `${c.titulo} pede mundo de DR ${c.minDR} ou mais, e este é DR ${dr}.` })
-      if (c.semDR11 && dr === 11) avisos.push({ nivel: 'erro', texto: `${c.titulo} não pode ser escolhido num mundo de DR 11.` })
+      if (c.minDR && dr && dr < c.minDR) avisos.push({ nivel: 'erro', texto: tr('{titulo} pede mundo de DR {minDR} ou mais, e este é DR {dr}.', { titulo: c.titulo, minDR: c.minDR, dr }) })
+      if (c.semDR11 && dr === 11) avisos.push({ nivel: 'erro', texto: tr('{titulo} não pode ser escolhido num mundo de DR 11.', { titulo: c.titulo }) })
       const conflito = (c.blacklist || []).filter(t => nomes.has(normalizar(t)))
-      if (conflito.length) avisos.push({ nivel: 'erro', texto: `${c.titulo} não combina com ${conflito.join(', ')}.` })
+      if (conflito.length) avisos.push({ nivel: 'erro', texto: tr('{titulo} não combina com {conflito}.', { titulo: c.titulo, conflito: conflito.join(', ') }) })
       const falta = (c.whitelist || []).filter(t => !nomes.has(normalizar(t)))
-      if (falta.length) avisos.push({ nivel: 'erro', texto: `${c.titulo} pede ${falta.join(', ')}, que não está na build.` })
-      if (normalizar(c.titulo) === 'glass cannon' && modelo.defenses.length) avisos.push({ nivel: 'aviso', texto: 'Glass Cannon tira todas as Defenses da Company, e a build compra Defenses.' })
+      if (falta.length) avisos.push({ nivel: 'erro', texto: tr('{titulo} pede {falta}, que não está na build.', { titulo: c.titulo, falta: falta.join(', ') }) })
+      if (normalizar(c.titulo) === 'glass cannon' && modelo.defenses.length) avisos.push({ nivel: 'aviso', texto: tr('Glass Cannon tira todas as Defenses da Company, e a build compra Defenses.') })
     }
-    if (modelo.drx && comBonus.length && metodo !== 'nenhum') avisos.push({ nivel: 'info', texto: `DRX start: a build é DR 11 e não tem budget inicial, então ${comBonus.map(a => a.titulo).join(', ')} não dá bônus em créditos.` })
-    else if (metodo === 'legacy' && comBonus.length && base0 == null) avisos.push({ nivel: 'aviso', texto: 'Para os valores legados, escolha o DR do mundo na aba Challenges: não achei o DR pelo budget.' })
-    if (metodo === 'nenhum' && comBonus.length) avisos.push({ nivel: 'info', texto: `Bônus de challenge desligado (aba Challenges): ${comBonus.map(a => a.titulo).join(', ')} ficam sem créditos, como no Interactive sem Legacy Difficulty.` })
+    if (modelo.drx && comBonus.length && metodo !== 'nenhum') avisos.push({ nivel: 'info', texto: tr('DRX start: a build é DR 11 e não tem budget inicial, então {comBonus} não dá bônus em créditos.', { comBonus: comBonus.map(a => a.titulo).join(', ') }) })
+    else if (metodo === 'legacy' && comBonus.length && base0 == null) avisos.push({ nivel: 'aviso', texto: tr('Para os valores legados, escolha o DR do mundo na aba Challenges: não achei o DR pelo budget.') })
+    if (metodo === 'nenhum' && comBonus.length) avisos.push({ nivel: 'info', texto: tr('Bônus de challenge desligado (aba Challenges): {comBonus} ficam sem créditos, como no Interactive sem Legacy Difficulty.', { comBonus: comBonus.map(a => a.titulo).join(', ') }) })
 
     return {
       metodo, dr, drBuild, drx: !!modelo.drx, base: base0, baseOutros, baseLegado: baseLeg, budget: modelo.budget, dobra,
@@ -1885,12 +1890,12 @@
     const antes = modelo.missoes.filter(m => !convertidas.some(c => chave(c) === chave(m)))
     for (const m of finais) {
       const a = antes.find(x => chave(x) === chave(m))
-      if (!a) mudancas.push(`Missão nova em Mission Rewards: ${m.titulo}${m.local ? ` in ${m.local}` : ''} (+${fmt(creditosDaMissao(m))} em créditos).`)
-      else if (assinaturaMissoes([a]) !== assinaturaMissoes([m])) mudancas.push(`Recompensas mudadas em ${m.titulo}: ${fmt(creditosDaMissao(a))} → ${fmt(creditosDaMissao(m))} em créditos.`)
+      if (!a) mudancas.push(tr('Missão nova em Mission Rewards: {titulo}{v2} (+{v3} em créditos).', { titulo: m.titulo, v2: m.local ? ` in ${m.local}` : '', v3: fmt(creditosDaMissao(m)) }))
+      else if (assinaturaMissoes([a]) !== assinaturaMissoes([m])) mudancas.push(tr('Recompensas mudadas em {titulo}: {v2} → {v3} em créditos.', { titulo: m.titulo, v2: fmt(creditosDaMissao(a)), v3: fmt(creditosDaMissao(m)) }))
     }
-    for (const a of antes) if (!finais.some(m => chave(m) === chave(a))) mudancas.push(`Saiu de Mission Rewards: ${a.titulo}${a.local ? ` in ${a.local}` : ''}.`)
+    for (const a of antes) if (!finais.some(m => chave(m) === chave(a))) mudancas.push(tr('Saiu de Mission Rewards: {titulo}{v2}.', { titulo: a.titulo, v2: a.local ? ` in ${a.local}` : '' }))
     if (Math.abs(total - totalTexto) > 0.01) mudancas.push(`Mission Rewards: ${comSinal(totalTexto)} → ${comSinal(total)}.`)
-    else if (!igual && finais.length) mudancas.push('Mission Rewards: uma missão e uma recompensa por linha, para a LLM ler melhor.')
+    else if (!igual && finais.length) mudancas.push(tr('Mission Rewards: uma missão e uma recompensa por linha, para a LLM ler melhor.'))
     return { lista: finais, total, totalTexto }
   }
 
@@ -1915,7 +1920,7 @@
     if (L.tipo === 'comprado') return `companion|${normalizar(L.nome)}|${L.tier}`
     return `${L.secao}|${normalizar(L.titulo)}|${normalizar(L.complexo)}`
   }
-  // O nome da compra nas listas: com a escolha ("Dragon Heart[Metal]"), mas sem a lista de alvos ("[You as Tatsumi, Chiyo]").
+  // O nome da compra nas listas: com a escolha ("Dragon Heart[Metal]"), mas sem a lista de alvos ("[You as Natsu Dragneel, Erza Scarlet]").
   function rotuloCompra(L) {
     if (L.tipo === 'item') return /,| as /.test(L.complexo || '') ? L.titulo : `${L.titulo}${L.complexo}`
     if (L.tipo === 'origem') return 'origin'
@@ -2013,43 +2018,43 @@
     }
 
     // --- Avisos das regras do DRX start
-    if (c1 && ['Possess', 'Substitute'].includes(c1.tipoOrigem) && c1.tier > 6) avisos.push({ nivel: 'erro', texto: `No DRX start, Possess e Substitute vão só até T6, e ${c1.nome} é T${tierTxt(c1.tier)}.` })
+    if (c1 && ['Possess', 'Substitute'].includes(c1.tipoOrigem) && c1.tier > 6) avisos.push({ nivel: 'erro', texto: tr('No DRX start, Possess e Substitute vão só até T6, e {nome} é T{tier}.', { nome: c1.nome, tier: tierTxt(c1.tier) }) })
     const t1a = c1 ? tier1a(c1) : 0
-    if (c1 && (c1.perk || c1.swap) && t1a > 6) avisos.push({ nivel: 'erro', texto: `No DRX start, Waifu Perk e Power Swap comprados para você na criação não podem passar do tier 6, e ${c1.perk ? `a Waifu Perk ${c1.perk.titulo}` : `o Power Swap para ${c1.swap.nome}`} leva a T${tierTxt(t1a)}.` })
-    if (!companion) avisos.push({ nivel: 'erro', texto: 'O DRX start pede uma companion de tier X ou Y (vale Power Swap para X ou Y, Heavenbuilt Proto ou Piece of Silver), e não achei nenhuma em "Companions bought".' })
-    else if (companion.perkCompanion) avisos.push({ nivel: 'info', texto: `A companion de tier imaginário do DRX start vem do ${companion.nome}.` })
+    if (c1 && (c1.perk || c1.swap) && t1a > 6) avisos.push({ nivel: 'erro', texto: tr('No DRX start, Waifu Perk e Power Swap comprados para você na criação não podem passar do tier 6, e {v1} leva a T{t1a}.', { v1: c1.perk ? tr('a Waifu Perk {titulo}', { titulo: c1.perk.titulo }) : tr('o Power Swap para {nome}', { nome: c1.swap.nome }), t1a: tierTxt(t1a) }) })
+    if (!companion) avisos.push({ nivel: 'erro', texto: tr('O DRX start pede uma companion de tier X ou Y (vale Power Swap para X ou Y, Heavenbuilt Proto ou Piece of Silver), e não achei nenhuma em "Companions bought".') })
+    else if (companion.perkCompanion) avisos.push({ nivel: 'info', texto: tr('A companion de tier imaginário do DRX start vem do {nome}.', { nome: companion.nome }) })
     const tierZ = modelo.comprados.filter(L => tierFinal(L) === 13)
-    if (!linhaComp && tierZ.length) avisos.push({ nivel: 'aviso', texto: `Tier Z não vale como a companion do DRX start: ${tierZ.map(L => L.nome).join(', ')}.` })
+    if (!linhaComp && tierZ.length) avisos.push({ nivel: 'aviso', texto: tr('Tier Z não vale como a companion do DRX start: {tierZ}.', { tierZ: tierZ.map(L => L.nome).join(', ') }) })
     const outrasXY = outras.filter(L => tierImaginario(tierFinal(L)))
-    if (linhaComp && outrasXY.length) avisos.push({ nivel: 'aviso', texto: `Só uma companion de tier X ou Y vem com o DRX start (${linhaComp.nome}). ${outrasXY.map(L => `${L.nome} (T${tierTxt(tierFinal(L))})`).join(', ')} custam IMG à parte, e a ferramenta não conta IMG.` })
-    if (custoOutras > 0) avisos.push({ nivel: 'erro', texto: `No DRX start, a criação só traz a companion de tier X ou Y, e nenhuma verba cobre companion: ${outras.filter(L => !tierImaginario(tierFinal(L))).map(L => `${L.nome} (T${tierTxt(L.tier)})`).join(', ')} somam ${fmt(custoOutras)}. Compre depois do chargen, com a conta normal.` })
+    if (linhaComp && outrasXY.length) avisos.push({ nivel: 'aviso', texto: tr('Só uma companion de tier X ou Y vem com o DRX start ({nome}). {outrasXY} custam IMG à parte, e a ferramenta não conta IMG.', { nome: linhaComp.nome, outrasXY: outrasXY.map(L => `${L.nome} (T${tierTxt(tierFinal(L))})`).join(', ') }) })
+    if (custoOutras > 0) avisos.push({ nivel: 'erro', texto: tr('No DRX start, a criação só traz a companion de tier X ou Y, e nenhuma verba cobre companion: {outras} somam {custoOutras}. Compre depois do chargen, com a conta normal.', { outras: outras.filter(L => !tierImaginario(tierFinal(L))).map(L => `${L.nome} (T${tierTxt(L.tier)})`).join(', '), custoOutras: fmt(custoOutras) }) })
     if (linhaComp) {
       const inicio = normalizar(String(modelo.mundo || '').replace(/\s*\[.*$/, ''))
       const natal = normalizar(linhaComp.mundo)
       companion.mundoNatal = !!(inicio && natal && (inicio === natal || inicio.includes(natal) || natal.includes(inicio)))
-      if (companion.mundoNatal) avisos.push({ nivel: 'info', texto: `A build começa no mundo natal de ${linhaComp.nome} (${linhaComp.mundo}): no DRX start, o Yoink entra de graça.` })
-      else if (linhaComp.metodo === 'yoink') avisos.push({ nivel: 'aviso', texto: `${linhaComp.nome} está como [yoink], mas o DRX start só dá o Yoink de graça quando a build começa no mundo natal da companion (${linhaComp.mundo}).` })
+      if (companion.mundoNatal) avisos.push({ nivel: 'info', texto: tr('A build começa no mundo natal de {nome} ({mundo}): no DRX start, o Yoink entra de graça.', { nome: linhaComp.nome, mundo: linhaComp.mundo }) })
+      else if (linhaComp.metodo === 'yoink') avisos.push({ nivel: 'aviso', texto: tr('{nome} está como [yoink], mas o DRX start só dá o Yoink de graça quando a build começa no mundo natal da companion ({mundo}).', { nome: linhaComp.nome, mundo: linhaComp.mundo }) })
     }
     const semEspaco = s => normalizar(s).replace(/\s+/g, '')
     const proibidas = new Set(NAO_COMBINA_DRX.map(semEspaco))
     const escolhidas = [...modelo.opcoesInt.map(L => L.nome), ...modelo.linhas.filter(L => L.tipo === 'item' && L.secao === 'Mode').map(L => L.titulo)]
     for (const n of [...new Set(escolhidas.filter(n => proibidas.has(semEspaco(n))))]) {
-      avisos.push({ nivel: 'erro', texto: RX.casal.test(n.trim()) ? `${n} não se escolhe junto com o DRX start: ele já traz uma Couple's Account com a companion de tier X ou Y.` : `${n} não combina com o DRX start.` })
+      avisos.push({ nivel: 'erro', texto: RX.casal.test(n.trim()) ? tr('{n} não se escolhe junto com o DRX start: ele já traz uma Couple\'s Account com a companion de tier X ou Y.', { n }) : tr('{n} não combina com o DRX start.', { n }) })
     }
     for (const v of verbas) {
       if (v.excesso <= 0) continue
       const falta = arred(v.excesso - v.coberto)
-      if (falta > 0) avisos.push({ nivel: 'erro', texto: `${v.nome}: ${fmt(v.gasto)} de ${fmt(v.total)}, passou ${fmt(v.excesso)} da verba do DRX start${v.coberto ? `, e o desconto de repetidos só cobre ${fmt(v.coberto)}` : ''}.` })
-      else avisos.push({ nivel: 'aviso', texto: `${v.nome}: ${fmt(v.gasto)} de ${fmt(v.total)}, passou ${fmt(v.excesso)} da verba do DRX start, e o desconto de Talents e Defenses repetidos cobre a diferença.` })
+      if (falta > 0) avisos.push({ nivel: 'erro', texto: tr('{nome}: {gasto} de {total}, passou {excesso} da verba do DRX start{v5}.', { nome: tr(v.nome), gasto: fmt(v.gasto), total: fmt(v.total), excesso: fmt(v.excesso), v5: v.coberto ? tr(', e o desconto de repetidos só cobre {coberto}', { coberto: fmt(v.coberto) }) : '' }) })
+      else avisos.push({ nivel: 'aviso', texto: tr('{nome}: {gasto} de {total}, passou {excesso} da verba do DRX start, e o desconto de Talents e Defenses repetidos cobre a diferença.', { nome: tr(v.nome), gasto: fmt(v.gasto), total: fmt(v.total), excesso: fmt(v.excesso) }) })
     }
     if (fora.total > 0) {
       const falta = arred(fora.total - fora.coberto)
       const itens = fora.itens.map(i => `${i.titulo} ${fmt(i.custo)}`).join(', ')
-      if (falta > 0) avisos.push({ nivel: 'erro', texto: `DLC sem verba própria (${itens}): ${fmt(fora.total)}. A verba de 600 é só para perks oficiais, e o desconto de Talents e Defenses repetidos (${fmt(dup.total)}) só cobre ${fmt(fora.coberto)}: faltam ${fmt(falta)}. Para pagar a DLC pela verba de 600, troque a escolha na aba Regras.` })
-      else avisos.push({ nivel: 'info', texto: `DLC sem verba própria (${itens}): ${fmt(fora.total)}, pagos pelo desconto de Talents e Defenses repetidos (${fmt(dup.total)}), porque a verba de 600 é só para perks oficiais.${dup.sobra > 0 ? ` Os ${fmt(dup.sobra)} que sobram do desconto não viram crédito.` : ''}` })
+      if (falta > 0) avisos.push({ nivel: 'erro', texto: tr('DLC sem verba própria ({itens}): {total}. A verba de 600 é só para perks oficiais, e o desconto de Talents e Defenses repetidos ({total2}) só cobre {coberto}: faltam {falta}. Para pagar a DLC pela verba de 600, troque a escolha na aba Regras.', { itens, total: fmt(fora.total), total2: fmt(dup.total), coberto: fmt(fora.coberto), falta: fmt(falta) }) })
+      else avisos.push({ nivel: 'info', texto: tr('DLC sem verba própria ({itens}): {total}, pagos pelo desconto de Talents e Defenses repetidos ({total2}), porque a verba de 600 é só para perks oficiais.{v4}', { itens, total: fmt(fora.total), total2: fmt(dup.total), v4: dup.sobra > 0 ? tr(' Os {sobra} que sobram do desconto não viram crédito.', { sobra: fmt(dup.sobra) }) : '' }) })
     }
-    else if (dup.sobra > 0) avisos.push({ nivel: 'info', texto: `O desconto de Talents e Defenses repetidos (${fmt(dup.sobra)}) não tem DLC para pagar. É desconto, e não crédito: não passa para a conta.` })
-    if (dup.tirado > 0) avisos.push({ nivel: 'info', texto: `O desconto de Talents e Defenses repetidos (${fmt(dup.tirado)}) não conta: no DRX start eles vieram de graça (escolha da aba Regras).` })
+    else if (dup.sobra > 0) avisos.push({ nivel: 'info', texto: tr('O desconto de Talents e Defenses repetidos ({sobra}) não tem DLC para pagar. É desconto, e não crédito: não passa para a conta.', { sobra: fmt(dup.sobra) }) })
+    if (dup.tirado > 0) avisos.push({ nivel: 'info', texto: tr('O desconto de Talents e Defenses repetidos ({tirado}) não conta: no DRX start eles vieram de graça (escolha da aba Regras).', { tirado: fmt(dup.tirado) }) })
 
     return {
       modo: modoVerba ? 'verba' : 'duplicados', verbas, sobra, fora, dup, semVerba, companion,
@@ -2075,7 +2080,7 @@
     const B = modelo.linhas.find(L => L.tipo === 'budget')
     if (B) {
       ed.trocar(B.i, { tipo: 'drx', texto: linhaVerbas, delta: TOTAL_DRX, colchete: true })
-      mudancas.push(`DRX start: o "Starting budget ${fmt(B.valor)}" é só o número da tabela; no lugar dele entram as verbas da criação, ${TOTAL_DRX} ao todo.`)
+      mudancas.push(tr('DRX start: o "Starting budget {valor}" é só o número da tabela; no lugar dele entram as verbas da criação, {TOTAL_DRX} ao todo.', { valor: fmt(B.valor), TOTAL_DRX }))
     }
     else {
       const M = modelo.linhas.find(L => L.tipo === 'mundo')
@@ -2089,7 +2094,7 @@
       const resto = arred(c.custo - c.gratis)
       if (L.tipo === 'origem') {
         ed.trocar(L.i, { texto: `${tirarCusto(L.cabeca)} ${resto > 0 ? `-${fmt(resto)}` : 'free'}`, delta: -resto })
-        deGraca.push(`a origem (${fmt(c.gratis)})`)
+        deGraca.push(tr('a origem ({gratis})', { gratis: fmt(c.gratis) }))
       }
       else if (L.tipo === 'comprado') {
         ed.depois(L.i, ed.nova(`DRX start: ${L.nome} is the DRX start companion, free +${fmt(c.gratis)}`, c.gratis))
@@ -2100,10 +2105,11 @@
         deGraca.push(`${c.titulo} (${fmt(c.gratis)})`)
       }
     }
-    if (deGraca.length) mudancas.push(`DRX start: ${deGraca.length > 1 ? 'saem' : 'sai'} de graça ${juntarE(deGraca, 'e')}, que o Interactive cobrava.`)
+    if (deGraca.length > 1) mudancas.push(tr('DRX start: saem de graça {itens}, que o Interactive cobrava.', { itens: juntarE(deGraca, tr('e')) }))
+    else if (deGraca.length) mudancas.push(tr('DRX start: sai de graça {itens}, que o Interactive cobrava.', { itens: deGraca[0] }))
     if (drx.modo === 'verba' && (modelo.descTalents || modelo.descDefenses)) {
       for (const L of [modelo.descTalents, modelo.descDefenses].filter(Boolean)) ed.remover(L.i)
-      mudancas.push('DRX start: o desconto de Talents e Defenses repetidos sai, porque eles vieram de graça (escolha da aba Regras).')
+      mudancas.push(tr('DRX start: o desconto de Talents e Defenses repetidos sai, porque eles vieram de graça (escolha da aba Regras).'))
     }
   }
 
@@ -2219,21 +2225,20 @@
 
   // O que só vale no chargen e apareceu depois dele: o sistema anti-erro do chargen encerrado.
   function avisosChargen(dif, banco, avisos, drx) {
-    const plural = (n, um, varios) => (n > 1 ? varios : um)
-    if (dif.drxNovo) avisos.push({ nivel: 'erro', texto: 'O DRX start só se escolhe no chargen, e não estava na build quando ele fechou.' })
-    if (dif.drxSaiu) avisos.push({ nivel: 'aviso', texto: 'O DRX start estava na build quando o chargen fechou e saiu depois. Ele não se desfaz depois do chargen: confira o texto.' })
-    if (dif.origemMudou) avisos.push({ nivel: 'aviso', texto: `A origem mudou depois do chargen (era "${dif.origemAntes || 'nenhuma'}"). A origem só se escolhe no chargen.` })
+    if (dif.drxNovo) avisos.push({ nivel: 'erro', texto: tr('O DRX start só se escolhe no chargen, e não estava na build quando ele fechou.') })
+    if (dif.drxSaiu) avisos.push({ nivel: 'aviso', texto: tr('O DRX start estava na build quando o chargen fechou e saiu depois. Ele não se desfaz depois do chargen: confira o texto.') })
+    if (dif.origemMudou) avisos.push({ nivel: 'aviso', texto: tr('A origem mudou depois do chargen (era "{v1}"). A origem só se escolhe no chargen.', { v1: dif.origemAntes || tr('nenhuma') }) })
     const ints = [...dif.intensidade.novas.map(L => `${L.nome} entrou`), ...dif.intensidade.sairam.map(L => `${L.nome} saiu`), ...dif.intensidade.mudaram.map(L => `${L.nome} mudou`)]
-    if (ints.length) avisos.push({ nivel: 'aviso', texto: `Intensity depois do chargen: ${ints.join('; ')}. As opções de Intensity só se escolhem no chargen; a exceção é a recompra (Buyback).` })
+    if (ints.length) avisos.push({ nivel: 'aviso', texto: tr('Intensity depois do chargen: {ints}. As opções de Intensity só se escolhem no chargen; a exceção é a recompra (Buyback).', { ints: ints.join('; ') }) })
     const perks = dif.depois.filter(x => x.novo && x.L.tipo === 'item' && banco.soNoChargen(x.L.titulo)).map(x => x.titulo)
-    if (perks.length) avisos.push({ nivel: 'aviso', texto: `${perks.join(', ')} ${plural(perks.length, 'só se compra no chargen, e entrou', 'só se compram no chargen, e entraram')} depois dele.` })
+    if (perks.length) avisos.push({ nivel: 'aviso', texto: perks.length > 1 ? tr('{perks} só se compram no chargen, e entraram depois dele.', { perks: perks.join(', ') }) : tr('{perks} só se compra no chargen, e entrou depois dele.', { perks: perks[0] }) })
     const chal = dif.challengesNovos.filter(t => challengeSoNoChargen(banco.challenge(t)))
-    if (chal.length) avisos.push({ nivel: 'aviso', texto: `${chal.join(', ')} ${plural(chal.length, 'é challenge só do chargen e entrou', 'são challenges só do chargen e entraram')} depois dele.` })
+    if (chal.length) avisos.push({ nivel: 'aviso', texto: chal.length > 1 ? tr('{chal} são challenges só do chargen e entraram depois dele.', { chal: chal.join(', ') }) : tr('{chal} é challenge só do chargen e entrou depois dele.', { chal: chal[0] }) })
     const yoink = dif.companions.novas.filter(L => String(L.metodo).toLowerCase() === 'yoink').map(L => L.nome)
-    if (yoink.length) avisos.push({ nivel: 'aviso', texto: `O Yoink só vale no chargen, e ${yoink.join(', ')} ${plural(yoink.length, 'entrou', 'entraram')} como [yoink] depois dele.` })
+    if (yoink.length) avisos.push({ nivel: 'aviso', texto: yoink.length > 1 ? tr('O Yoink só vale no chargen, e {yoink} entraram como [yoink] depois dele.', { yoink: yoink.join(', ') }) : tr('O Yoink só vale no chargen, e {yoink} entrou como [yoink] depois dele.', { yoink: yoink[0] }) })
     if (drx && (dif.sairam.length || dif.companions.sairam.length)) {
-      const itens = [...dif.sairam.map(x => x.titulo === 'origin' ? 'a origem' : x.titulo), ...dif.companions.sairam.map(L => L.nome)]
-      avisos.push({ nivel: 'aviso', texto: `Saiu depois do chargen: ${itens.join(', ')}. As verbas do DRX start não voltam, e o texto do Interactive devolve o preço cheio à conta normal. Pela regra de devolução, origem, Heritage e a companion do DRX start não têm reembolso; rides e companions voltam inteiros em até duas semanas, e o resto volta por 80%. Acerte a diferença em "Specific credit modifiers", no Interactive.` })
+      const itens = [...dif.sairam.map(x => x.titulo === 'origin' ? tr('a origem') : x.titulo), ...dif.companions.sairam.map(L => L.nome)]
+      avisos.push({ nivel: 'aviso', texto: tr('Saiu depois do chargen: {itens}. As verbas do DRX start não voltam, e o texto do Interactive devolve o preço cheio à conta normal. Pela regra de devolução, origem, Heritage e a companion do DRX start não têm reembolso; rides e companions voltam inteiros em até duas semanas, e o resto volta por 80%. Acerte a diferença em "Specific credit modifiers", no Interactive.', { itens: itens.join(', ') }) })
     }
   }
 
@@ -2296,13 +2301,13 @@
   function lerImportacao(texto) {
     let dados
     try { dados = JSON.parse(String(texto || '').trim()) }
-    catch (e) { return { erro: 'Esse texto não é um JSON. Cole tudo o que o Export do Interactive copiou, ou o conteúdo de um backup desta ferramenta.' } }
+    catch (e) { return { erro: tr('Esse texto não é um JSON. Cole tudo o que o Export do Interactive copiou, ou o conteúdo de um backup desta ferramenta.') } }
     let lista
     let formato
     if (Array.isArray(dados)) { lista = dados; formato = 'interactive' }
     else if (dados && Array.isArray(dados.personagens)) { lista = dados.personagens; formato = 'backup' }
     else if (dados && typeof dados === 'object' && (dados.name || dados.nome)) { lista = [dados]; formato = 'interactive' }
-    else return { erro: 'Não achei uma lista de personagens nesse texto.' }
+    else return { erro: tr('Não achei uma lista de personagens nesse texto.') }
     const registros = []
     let ignorados = 0
     for (const o of lista) {

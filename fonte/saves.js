@@ -11,9 +11,17 @@
  */
 (function (raiz) {
   'use strict'
+  // Textos dos arquivos no idioma escolhido (fonte/idiomas.js); sem o módulo de idiomas, em português.
+  const tr = (texto, campos) => (raiz.WCIdioma ? raiz.WCIdioma.t(texto, campos)
+    : (campos ? String(texto).replace(/\{(\w+)\}/g, (m, k) => (campos[k] != null ? String(campos[k]) : m)) : texto))
   const FORMATO = 'caderno-contractor'
   const MARCA_TEXTO = '----- Texto corrigido da build -----'
   const MARCA_DADOS = '----- Dados para carregar no Caderno do Contractor (não edite daqui para baixo) -----'
+  // As marcas em inglês, para os arquivos baixados com a página em inglês. Ao ler, vale qualquer uma.
+  const MARCA_TEXTO_EN = "----- Fixed build text -----"
+  const MARCA_DADOS_EN = "----- Data to load into the Contractor's Notebook (do not edit below this line) -----"
+  const marcaTexto = () => tr(MARCA_TEXTO)
+  const marcaDados = () => tr(MARCA_DADOS)
   // Campos que a página recalcula ao abrir a build: não precisam ocupar espaço no save.
   const CALCULADOS = ['candidatos', 'tagsBase', 'arqBase', 'arqAuto', 'tagsDef', 'arquetipos', 'meu']
 
@@ -55,7 +63,7 @@
     versoes.sort((x, y) => x.salvaEm.localeCompare(y.salvaEm))
     return {
       id: typeof b.id === 'string' && /^b:[\w-]+$/.test(b.id) ? b.id : novoId('b'),
-      nome: String(b.nome || versoes[versoes.length - 1].resumo.contractors || 'Build sem nome').trim().slice(0, 120) || 'Build sem nome',
+      nome: String(b.nome || versoes[versoes.length - 1].resumo.contractors || tr('Build sem nome')).trim().slice(0, 120) || tr('Build sem nome'),
       criadaEm: dataValida(b.criadaEm) ? b.criadaEm : versoes[0].salvaEm,
       versoes,
     }
@@ -71,6 +79,7 @@
   }
 
   function dataBonita(iso) {
+    if (raiz.WCIdioma) return raiz.WCIdioma.dataHora(iso)
     const d = new Date(iso)
     if (Number.isNaN(d.getTime())) return ''
     const z = n => String(n).padStart(2, '0')
@@ -80,29 +89,31 @@
   const paraArquivo = s => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 100)
   const mundoCurto = m => String(m || '').replace(/\s*\[.*$/, '').trim()
 
-  // Como os saves do Interactive: "save_Kukulkan PvP +15 - SCP.txt".
+  // Como os saves do Interactive: "save_Natsu e Usagi +15 - Fairy Tail.txt".
   function nomeArquivo(build, versao) {
     let nome = `save_${paraArquivo(build.nome) || 'build'}`
     if (versao && versao.rotulo) nome += ` ${paraArquivo(versao.rotulo)}`
     const mundo = mundoCurto((versao || ultima(build)).resumo.mundo)
     if (mundo) nome += ` - ${paraArquivo(mundo)}`
-    if (!versao) nome += ' (todas as versões)'
+    if (!versao) nome += tr(' (todas as versões)')
     return `${nome}.txt`
   }
 
-  const linhaSaldo = r => (r.saldo != null ? ` · saldo final ${r.saldo}` : '')
-  const dados = obj => `${MARCA_DADOS}\n${JSON.stringify({ formato: FORMATO, v: 1, ...obj })}\n`
+  const linhaSaldo = r => (r.saldo != null ? tr(' · saldo final {saldo}', { saldo: r.saldo }) : '')
+  const dados = obj => `${marcaDados()}\n${JSON.stringify({ formato: FORMATO, v: 1, ...obj })}\n`
+  const cabecalho = () => tr('Caderno do Contractor · Waifu Catalog')
+  const paraAbrir = () => tr('Para abrir de novo: Caderno do Contractor → Saves → Carregar arquivo.')
 
   function arquivoVersao(build, versao, textoCorrigido) {
     const r = versao.resumo
     return [
-      'Caderno do Contractor · Waifu Catalog',
+      cabecalho(),
       `Build: ${build.nome}`,
-      `Versão: ${versao.rotulo || '(sem nome)'} · salva em ${dataBonita(versao.salvaEm)}`,
-      r.mundo ? `Mundo: ${r.mundo}${linhaSaldo(r)}` : null,
-      'Para abrir de novo: Caderno do Contractor → Saves → Carregar arquivo.',
+      tr('Versão: {rotulo} · salva em {data}', { rotulo: versao.rotulo || tr('(sem nome)'), data: dataBonita(versao.salvaEm) }),
+      r.mundo ? tr('Mundo: {mundo}{saldo}', { mundo: r.mundo, saldo: linhaSaldo(r) }) : null,
+      paraAbrir(),
       '',
-      MARCA_TEXTO,
+      marcaTexto(),
       String(textoCorrigido || versao.texto).trimEnd(),
       '',
       dados({ tipo: 'versao', builds: [{ ...build, versoes: [versao] }] }),
@@ -111,10 +122,10 @@
 
   function arquivoBuild(build) {
     return [
-      'Caderno do Contractor · Waifu Catalog',
-      `Build: ${build.nome} · ${build.versoes.length} ${build.versoes.length === 1 ? 'versão' : 'versões'}`,
-      ...build.versoes.map(v => `- ${v.rotulo || '(sem nome)'} · ${dataBonita(v.salvaEm)}${v.resumo.mundo ? ` · ${mundoCurto(v.resumo.mundo)}` : ''}${linhaSaldo(v.resumo)}`),
-      'Para abrir de novo: Caderno do Contractor → Saves → Carregar arquivo.',
+      cabecalho(),
+      build.versoes.length === 1 ? tr('Build: {nome} · 1 versão', { nome: build.nome }) : tr('Build: {nome} · {n} versões', { nome: build.nome, n: build.versoes.length }),
+      ...build.versoes.map(v => `- ${v.rotulo || tr('(sem nome)')} · ${dataBonita(v.salvaEm)}${v.resumo.mundo ? ` · ${mundoCurto(v.resumo.mundo)}` : ''}${linhaSaldo(v.resumo)}`),
+      paraAbrir(),
       '',
       dados({ tipo: 'build', builds: [build] }),
     ].join('\n')
@@ -123,10 +134,10 @@
   function arquivoBackup(builds, extras) {
     const versoes = builds.reduce((a, b) => a + b.versoes.length, 0)
     return [
-      'Caderno do Contractor · Waifu Catalog',
-      `Backup de tudo: ${builds.length} ${builds.length === 1 ? 'build' : 'builds'}, ${versoes} ${versoes === 1 ? 'versão' : 'versões'}${extras && extras.meus ? `, ${extras.meus.length} em Meus personagens` : ''}.`,
+      cabecalho(),
+      tr('Backup de tudo: {builds} build(s), {versoes} versão(ões){meus}.', { builds: builds.length, versoes, meus: extras && extras.meus ? tr(', {n} em Meus personagens', { n: extras.meus.length }) : '' }),
       ...builds.map(b => `- ${b.nome} (${b.versoes.length})`),
-      'Para carregar: Caderno do Contractor → Saves → Carregar arquivo. O que já existe não é apagado.',
+      tr('Para carregar: Caderno do Contractor → Saves → Carregar arquivo. O que já existe não é apagado.'),
       '',
       dados({ tipo: 'backup', builds, meus: (extras && extras.meus) || [], prefs: (extras && extras.prefs) || {} }),
     ].join('\n')
@@ -136,14 +147,14 @@
   // personagens para Meus personagens, ou um save do próprio Interactive (que esta página não abre).
   function lerArquivo(texto) {
     const t = String(texto || '').replace(/^\uFEFF/, '')
-    const i = t.indexOf(MARCA_DADOS)
+    const marca = [MARCA_DADOS, MARCA_DADOS_EN].find(m => t.includes(m))
     let bruto = null
-    if (i >= 0) bruto = t.slice(i + MARCA_DADOS.length).trim()
+    if (marca) bruto = t.slice(t.indexOf(marca) + marca.length).trim()
     else if (/^\s*[[{]/.test(t)) bruto = t.trim()
     if (bruto != null) {
       let d
       try { d = lerJSON(bruto) }
-      catch (e) { return { tipo: 'erro', erro: 'Os dados do fim do arquivo estão estragados (o JSON não fecha). Use outro arquivo ou um backup.' } }
+      catch (e) { return { tipo: 'erro', erro: tr('Os dados do fim do arquivo estão estragados (o JSON não fecha). Use outro arquivo ou um backup.') } }
       if (d && d.formato === FORMATO && Array.isArray(d.builds)) {
         return {
           tipo: ['versao', 'build', 'backup'].includes(d.tipo) ? d.tipo : 'build',
@@ -175,7 +186,7 @@
   }
 
   raiz.WCSaves = {
-    FORMATO, MARCA_DADOS, MARCA_TEXTO,
+    FORMATO, MARCA_DADOS, MARCA_TEXTO, MARCA_DADOS_EN, MARCA_TEXTO_EN,
     novoId, compactarCfg, limparBuild, limparVersao, ultima, sugerirRotulo, dataBonita, nomeArquivo,
     arquivoVersao, arquivoBuild, arquivoBackup, lerArquivo, mesclarBuilds,
   }
