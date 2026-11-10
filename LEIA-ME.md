@@ -143,5 +143,3 @@ Onde as regras deixam dúvida, a ferramenta escolhe um lado e deixa você trocar
 ---
 
 Ferramenta de fã, sem ligação oficial com o Waifu Catalog. Dados e fórmulas do [Waifu Catalog Interactive](https://waifu-catalog.neocities.org).
-
-Feito com ❤️ por [MrMarkinBoladao](https://github.com/MrMarkinBoladao).
