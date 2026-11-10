@@ -66,5 +66,3 @@ Texts are written in Portuguese inside `tr('...')`. The English version lives in
 ## Credits
 
 Fan-made tool, not officially affiliated with the Waifu Catalog. Rules from the Waifu Catalog document; data and formulas from the [Waifu Catalog Interactive](https://waifu-catalog.neocities.org). The JavaScript parser in `ferramentas/vendor/` is [acorn](https://github.com/acornjs/acorn) (MIT).
-
-Made with ❤️ by [MrMarkinBoladao](https://github.com/MrMarkinBoladao).
