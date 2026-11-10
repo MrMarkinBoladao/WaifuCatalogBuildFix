@@ -345,8 +345,9 @@ if (pastaBuilds && fs.existsSync(pastaBuilds)) {
     const esperados = arq === 'build-tatsumi.md' ? 1 : 0
     if (erros.length !== esperados) falhas++
     if (esperados) {
+      // É DRX start: o saldo é o que sobra das verbas (169, como na build), menos os 130 que o texto não explica.
       const r2 = rodar(m[1], (c) => { c.opcoes.manterDiferencas = true }).r
-      confere(`${arq}: mantendo a diferença, o saldo final volta a ser o do texto`, r2.saldoFinal, -1699)
+      confere(`${arq}: mantendo a diferença, as sobras do DRX perdem os 130 que o texto não explica`, r2.saldoFinal, 169 - 130)
     }
     const resumo = `casal=${modelo.casal} heritage=${modelo.heritage.length} defenses=${modelo.defenses.length} saldo ${WCFix.fmt(modelo.conferenciaSaldos.saldoFinalMostrado)} → ${WCFix.fmt(r.saldoFinal)}`
     console.log(`${erros.length !== esperados ? 'FALHA' : 'ok  '} ${arq}: ${resumo}${erros.length ? '\n      não fecha: ' + erros.map(e => `${e.linha.raw.trim()} (esperado ${e.esperado})`).join('\n      ') : ''}`)

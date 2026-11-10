@@ -161,6 +161,23 @@ body[data-aba="meus"] [data-painel="meus"], body[data-aba="regras"] [data-painel
   .lido dt { margin-top: 8px; font-size: 12.5px; }
 }
 
+/* ------------------------------------------------------------------ DRX start: as verbas */
+.verbas { display: grid; gap: 12px; margin: 2px 0 12px; }
+.verba-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; }
+.verba-cab .num { color: var(--suave); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.barra { height: 8px; margin: 5px 0 4px; overflow: hidden; border-radius: 999px; background: var(--acento-suave); }
+.barra > span { display: block; height: 100%; border-radius: 999px; background: var(--acento); }
+.verba.passou .barra > span { background: var(--ruim); }
+.verba-pe { font-size: 12.5px; color: var(--suave); }
+.verba-pe b { color: var(--bom); }
+.verba.passou .verba-pe b, .verba.passou .verba-cab .num { color: var(--ruim); }
+.verba-pe details { display: inline; margin-left: 6px; }
+.verba-pe details[open] { display: block; margin: 4px 0 0; }
+.verba-pe summary { display: inline; cursor: pointer; color: var(--acento); }
+.verbas.compacta { gap: 7px; margin: 0; }
+.verbas.compacta .verba-cab { font-size: 13.5px; }
+.verbas.compacta .barra { height: 5px; margin: 3px 0 0; }
+
 /* ------------------------------------------------------------------ pessoas e tags */
 details.mais-campos { margin: 4px 0 12px; }
 details.mais-campos > summary { cursor: pointer; min-height: 32px; padding: 4px 0; color: var(--acento); font-size: 14px; font-weight: 600; }
@@ -236,7 +253,8 @@ select.mais-tag { min-height: 32px; max-width: 230px; padding: 3px 10px; border-
 .resultado[data-sub="resumo"] [data-subpainel="resumo"], .resultado[data-sub="texto"] [data-subpainel="texto"],
 .resultado[data-sub="linhas"] [data-subpainel="linhas"] { display: block; }
 .resultado h3 { margin: 16px 0 8px; font-size: 15px; }
-.resultado [data-subpainel] > div:first-child > h3:first-child { margin-top: 0; }
+.resultado [data-subpainel] > div:first-child > h3:first-child,
+.resultado [data-subpainel] > div:empty:first-child + div > h3:first-child { margin-top: 0; }
 .aviso { margin: 0 0 8px; padding: 8px 11px; border-radius: 9px; font-size: 13.5px; }
 .aviso.erro { background: var(--ruim-fundo); color: var(--ruim); }
 .aviso.aviso { background: var(--alerta-fundo); color: var(--alerta); }

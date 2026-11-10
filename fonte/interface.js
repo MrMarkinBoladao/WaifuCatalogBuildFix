@@ -161,8 +161,10 @@
     const novo = W.analisar(texto)
     const ant = est.modelo
     // A mesma build (mesmo mundo e mesma origem) colada de novo, por exemplo depois de jogar mais um pouco
-    // no Interactive: mantém as escolhas e continua ligada à build salva, para virar a próxima versão.
-    const mesmaBuild = ant && ant.mundo === novo.mundo && ((ant.origem && ant.origem.raw) === (novo.origem && novo.origem.raw))
+    // no Interactive: mantém as escolhas (e a foto do chargen) e continua ligada à build salva, para virar a
+    // próxima versão. A origem é comparada sem o saldo, que muda com um empréstimo tomado depois.
+    const origemSemSaldo = md => (md.origem ? md.origem.cabeca || md.origem.raw : null)
+    const mesmaBuild = ant && ant.mundo === novo.mundo && origemSemSaldo(ant) === origemSemSaldo(novo)
     if (!mesmaBuild) desligarSave()
     est.cfg = W.configPadrao(novo, banco, mesmaBuild ? est.cfg : null)
     est.modelo = novo
@@ -240,7 +242,9 @@
   }
   function atualizar() {
     $('chkCasal').checked = !!(est.cfg && est.cfg.casal)
+    $('chkChargen').checked = !!(est.cfg && est.cfg.chargen && est.cfg.chargen.encerrado)
     atualizarResultado()
+    atualizarDRX()
     atualizarPessoas()
     atualizarRetinue()
     montarHeritage()
@@ -299,9 +303,16 @@
     const dl = h('dl', { class: 'lido' })
     const item = (rot, ...val) => dl.append(h('dt', null, rot), h('dd', null, ...val))
     item('Mundo', md.mundo || '—')
-    item('Budget', md.budget != null ? fmt(md.budget) : 'não achei a linha "Starting budget"')
-    if (md.intensidade != null) item('Intensity', fmt(md.intensidade))
-    item('Conta', cfg.casal ? "Couple's Account: dois contractors" : 'um contractor')
+    if (md.drx) item('Budget', `nenhum: no DRX start valem as verbas da criação, ${fmt(W.TOTAL_DRX)} ao todo${md.budget != null ? ` (o ${fmt(md.budget)} do texto é só o número da tabela)` : ''}`)
+    else item('Budget', md.budget != null ? fmt(md.budget) : 'não achei a linha "Starting budget"')
+    if (md.intensidade != null) item('Intensity', md.drx ? `${fmt(md.intensidade)}, travada pelo DRX start` : fmt(md.intensidade))
+    const compDRX = est.res && est.res.drx && est.res.drx.companion
+    if (md.drx) item('DRX start', `sim: Danger Rating X${compDRX ? `, com ${compDRX.nome}${compDRX.tier ? ` (T${tierTxt(compDRX.tier)})` : ''}` : ''}`)
+    item('Conta', cfg.casal ? "Couple's Account: dois contractors" : (md.drx ? "um contractor, com a Couple's Account que o DRX start dá com a companion" : 'um contractor'))
+    const cg = cfg.chargen || {}
+    item('Chargen', cg.encerrado
+      ? [`encerrado${cg.foto && cg.foto.em ? `; foto da build de ${S.dataBonita(cg.foto.em)}` : ''} `, botao('Refazer a foto com a build de agora', refazerFoto, 'leve', { style: 'min-height:28px;padding:2px 10px;font-size:12.5px' })]
+      : 'em andamento (marque "Chargen encerrado" quando a build sair da criação)')
     item(cfg.casal ? 'Contractor 1' : 'Contractor', resumoOrigem(cfg.c1))
     if (cfg.casal) item('Contractor 2 (SO)', resumoOrigem(cfg.so))
     item('Heritage', md.heritage.length ? md.heritage.map(L => L.titulo).join(', ') : 'nenhuma')
@@ -323,6 +334,8 @@
         est.res && est.res.sequito.membros.length ? botao('Ver a retinue', () => irPara('retinue')) : null,
         est.res && est.res.challenges.lista.length ? botao('Ver challenges', () => irPara('challenges')) : null,
         botao('Ver resultado', () => irPara('resultado'), 'sec so-estreito'))))
+    // As verbas do DRX start: o conteúdo muda a cada conta (atualizarDRX).
+    if (md.drx) box.append(h('div', { class: 'card', id: 'cardDRX' }))
 
     if (md.mods.length) {
       const card = h('div', { class: 'card' }, h('div', { class: 'card-topo' }, h('h2', null, 'Specific credit modifiers'), h('small', null, 'desmarque o que a ferramenta já corrige')))
@@ -335,6 +348,107 @@
       if (cfg.casal) card.append(nota('O reembolso do SO feito à mão sai sozinho: a linha "only the more expensive origin" já faz essa conta.'))
       box.append(card)
     }
+  }
+
+  // ---------------------------------------------------------------- chargen e DRX start
+  // A foto do chargen: o texto colado agora e os challenges postos pela página.
+  function fotoAgora() {
+    return { texto: $('entrada').value, em: new Date().toISOString(), challenges: ((est.cfg.challenges && est.cfg.challenges.adicionados) || []).slice() }
+  }
+  function mudarChargen(encerrado) {
+    const cg = est.cfg.chargen || (est.cfg.chargen = { encerrado: false, foto: null })
+    cg.encerrado = encerrado
+    let msg
+    if (encerrado && cg.foto) msg = `Chargen encerrado, com a foto da build de ${S.dataBonita(cg.foto.em)}. Para usar a build de agora, toque em "Refazer a foto" na aba Build.`
+    else if (encerrado) { cg.foto = fotoAgora(); msg = 'Chargen encerrado: a página guardou uma foto da build como está agora. O que mudar depois é comparado com ela.' }
+    else msg = 'Chargen reaberto: tudo volta a contar como compra da criação. A foto fica guardada para quando você encerrar de novo.'
+    reconstruir()
+    toast(msg)
+  }
+  function refazerFoto() {
+    if (!est.cfg) return
+    est.cfg.chargen.foto = fotoAgora()
+    reconstruir()
+    toast('Foto do chargen refeita com a build de agora.')
+  }
+
+  const pct = (parte, total) => `${Math.max(0, Math.min(100, total ? (parte / total) * 100 : 0)).toFixed(1)}%`
+  function barraVerba(v) {
+    return h('div', { class: 'barra', role: 'progressbar', 'aria-label': `${v.nome}: ${fmt(v.gasto)} de ${fmt(v.total)}`, 'aria-valuemin': '0', 'aria-valuemax': String(v.total), 'aria-valuenow': String(Math.min(v.gasto, v.total)) },
+      h('span', { style: `width:${pct(v.gasto, v.total)}` }))
+  }
+  // O que a verba tem: as compras, e na heritage os descontos.
+  function detalheVerba(v) {
+    const partes = v.itens.map(i => `${i.titulo}${i.dlc ? ' (DLC)' : ''} ${fmt(i.custo)}`)
+    if (v.chave === 'heritage' && v.descArq) partes.push(`desconto de arquétipo −${fmt(v.descArq)}`)
+    if (v.chave === 'heritage' && v.metade) partes.push(`metade da Couple's Account −${fmt(v.metade)}`)
+    return partes
+  }
+  function estadoSobra(d) {
+    if (!d.fechado) return { texto: 'vai para a conta normal quando o chargen acabar', classe: 'selo' }
+    if (!d.seteDias) return { texto: 'travada até os 7 dias passarem', classe: 'selo ruim2' }
+    return { texto: 'livre na conta normal', classe: 'selo bom' }
+  }
+
+  function atualizarDRX() {
+    const box = $('cardDRX')
+    if (!box) return
+    const d = est.res && est.res.drx
+    box.hidden = !d
+    if (!d) { box.replaceChildren(); return }
+    const cfg = est.cfg
+    const nos = [h('div', { class: 'card-topo' }, h('h2', null, 'DRX start (Danger Rating X)'), h('small', null, d.fechado ? 'as verbas como ficaram no fim do chargen' : 'as verbas da criação, no lugar do budget'))]
+    const lista = h('div', { class: 'verbas' })
+    for (const v of d.verbas) {
+      const passou = v.excesso > 0
+      const itens = detalheVerba(v)
+      let pe
+      if (passou) pe = [h('b', null, `passou ${fmt(v.excesso)}`), v.coberto >= v.excesso ? ', coberto pelo desconto de repetidos' : (v.coberto ? `; o desconto de repetidos cobre ${fmt(v.coberto)}` : '')]
+      else pe = [h('b', null, `sobram ${fmt(v.sobra)}`)]
+      lista.append(h('div', { class: `verba${passou ? ' passou' : ''}` },
+        h('div', { class: 'verba-cab' }, h('b', null, v.nome), h('span', { class: 'num' }, `${fmt(v.gasto)} de ${fmt(v.total)}`)),
+        barraVerba(v),
+        h('div', { class: 'verba-pe' }, ...pe,
+          itens.length ? h('details', null, h('summary', null, `ver o que entrou (${v.itens.length})`), h('div', null, itens.join(' · '))) : ' · nada comprado')))
+    }
+    nos.push(lista)
+    if (d.fora.total > 0) {
+      const falta = d.fora.total - d.fora.coberto
+      nos.push(h('p', { class: `aviso ${falta > 0.001 ? 'erro' : 'info'}` },
+        `DLC sem verba própria: ${d.fora.itens.map(i => `${i.titulo} ${fmt(i.custo)}`).join(', ')} (${fmt(d.fora.total)}). `,
+        falta > 0.001 ? `O desconto de repetidos (${fmt(d.dup.total)}) só cobre ${fmt(d.fora.coberto)}: faltam ${fmt(falta)}.` : `Paga com o desconto de Talents e Defenses repetidos (${fmt(d.dup.total)}).`))
+    }
+    if (d.dup.sobra > 0) nos.push(nota(`Sobram ${fmt(d.dup.sobra)} do desconto de repetidos. É desconto, e não crédito: não passa para a conta.`))
+    if (d.outras.custo > 0) nos.push(h('p', { class: 'aviso erro' }, `Outras companions na criação, sem verba: ${d.outras.nomes.join(', ')} (${fmt(d.outras.custo)}).`))
+    const g = d.gratis
+    const gratis = [`a origem${g.origem ? ` (${fmt(g.origem)})` : ''}`]
+    if (g.binding.length) gratis.push(`a binding básica (${g.binding.join(', ')})`)
+    if (g.lures.length) gratis.push(`os Lures básicos (${g.lures.join(', ')})`)
+    gratis.push('os 16 Talents básicos', 'as duas compras de todas as Defenses')
+    const c = d.companion
+    if (c) gratis.push(c.perkCompanion ? `a companion de tier imaginário do ${c.nome}` : `${c.nome}${c.tier ? ` (T${tierTxt(c.tier)})` : ''}, a companion do DRX start`)
+    nos.push(h('p', { class: 'nota' }, h('b', null, 'De graça: '), `${gratis.slice(0, -1).join(', ')} e ${gratis[gratis.length - 1]}.`))
+    if (c && !c.perkCompanion && !cfg.casal) nos.push(nota(`${c.nome} divide a Couple's Account com você. Para dividir a heritage entre os dois, marque "Tratar como Couple's Account" no topo da aba.`))
+    const est2 = estadoSobra(d)
+    nos.push(h('div', { class: 'total-linha', style: 'margin:12px 0 4px' }, h('span', null, 'Sobra das verbas'), h('b', null, fmt(d.sobra)), h('span', { class: est2.classe }, est2.texto)))
+    if (d.fechado && d.depois.length) nos.push(nota(h('b', null, 'Depois do chargen, pela conta normal: '), d.depois.map(x => `${x.titulo} ${fmt(x.custo)}`).join(', '), '.'))
+    nos.push(h('label', { class: 'opcao', style: 'border-top:0;padding-bottom:0' },
+      h('input', { type: 'checkbox', checked: !!(cfg.drx && cfg.drx.seteDias), disabled: !d.fechado, onchange: (e) => { cfg.drx = cfg.drx || {}; cfg.drx.seteDias = e.target.checked; recalcular() } }),
+      h('span', null, 'Os 7 dias (168 horas) depois do chargen já passaram na história',
+        h('small', null, d.fechado
+          ? 'Marcado, as sobras das verbas ficam livres na conta normal. Desmarcado, elas ficam travadas, e o saldo final mostra só o que dá para usar agora.'
+          : 'Os 7 dias contam do fim do chargen: marque "Chargen encerrado" no topo da aba primeiro.'))))
+    box.replaceChildren(...nos)
+  }
+
+  // Versão curta das verbas, no topo do Resumo.
+  function blocoDRXResultado(d) {
+    const linhas = d.verbas.map(v => h('div', { class: `verba${v.excesso > 0 ? ' passou' : ''}` },
+      h('div', { class: 'verba-cab' }, h('span', null, v.nome), h('span', { class: 'num' }, v.excesso > 0 ? `passou ${fmt(v.excesso)}` : `sobram ${fmt(v.sobra)} de ${fmt(v.total)}`)),
+      barraVerba(v)))
+    const e = estadoSobra(d)
+    return [h('h3', null, 'DRX start: verbas da criação'), h('div', { class: 'verbas compacta' }, linhas),
+      h('p', { class: 'nota', style: 'margin:6px 0 0' }, `Sobra ${fmt(d.sobra)}: ${e.texto}.`)]
   }
 
   // ---------------------------------------------------------------- aba Pessoas e tags
@@ -388,7 +502,7 @@
     }
     else if (chave === 'so') {
       card.append(h('div', { class: 'card-topo' }, h('h3', null, 'Contractor 2 · SO'), h('small', null, 'quem divide a conta')))
-      card.append(h('p', { class: 'fixo' }, `${resumoOrigem(p)} · origem de ${fmt(p.custoOrigem)}`))
+      card.append(h('p', { class: 'fixo' }, p.drx ? `${resumoOrigem(p)} · a companion do DRX start, que veio de graça` : `${resumoOrigem(p)} · origem de ${fmt(p.custoOrigem)}`))
       card.append(campoApelido(p, chave))
       // Os campos da origem do SO quase nunca mudam: ficam fechados, menos quando o SO não foi achado.
       const abrir = est.abrirSO != null ? est.abrirSO : p.linha == null
@@ -742,6 +856,7 @@
 
     const base = h('div', { class: 'card' }, h('div', { class: 'card-topo' }, h('h2', null, 'Bônus dos challenges'), h('small', null, 'a escolha vale para todas as builds')))
     base.append(nota('Alguns challenges dão uma porcentagem do budget do mundo. O Interactive só soma esse bônus com Legacy Difficulty; aqui ele entra na linha do próprio challenge, pela base que você escolher.'))
+    if (rc.drx) base.append(h('p', { class: 'aviso info' }, 'DRX start: a build é DR 11 e não tem budget inicial, então nenhum challenge dá bônus em créditos, qualquer que seja a base.'))
     const escolha = (valor, titulo, explicacao) => h('label', { class: `escolha${op.bonusChallenge === valor ? ' on' : ''}` },
       h('input', { type: 'radio', name: 'bonusChallenge', value: valor, checked: op.bonusChallenge === valor, onchange: () => mudarPref('bonusChallenge', valor) }),
       h('span', null, h('b', null, titulo), h('small', null, explicacao)))
@@ -754,7 +869,7 @@
       h('input', { type: 'checkbox', checked: !!op.powerTripDobra, onchange: e => mudarPref('powerTripDobra', e.target.checked) }),
       h('span', null, 'O Power Trip dobra o budget antes dos outros bônus',
         h('small', null, `O Power Trip dá "+100% ao starting budget". Ligado, os outros challenges saem sobre o budget já dobrado${dobrado}. Desligado, cada um sai sobre o budget original, como o card do Interactive mostra.`))))
-    const opcoesDR = [['', rc.drBuild ? `DR ${rc.drBuild} (achado pelo budget)` : 'Não achei pelo budget: escolha']]
+    const opcoesDR = [['', rc.drx ? 'DR 11, pelo DRX start (sem budget)' : (rc.drBuild ? `DR ${rc.drBuild} (achado pelo budget)` : 'Não achei pelo budget: escolha')]]
     for (let d = 1; d <= 11; d++) opcoesDR.push([String(d), `DR ${d}${d <= 10 ? `, base legada ${fmt(W.budgetLegado(d))}` : ', sem budget'}`])
     base.append(h('div', { class: 'campos', style: 'margin:10px 0 0' },
       campo('DR do mundo de partida (para os valores legados)', lista(opcoesDR, cc.dr ? String(cc.dr) : '', (v) => { cc.dr = v ? parseInt(v, 10) : null; recalcular() }))))
@@ -786,7 +901,12 @@
     box.append(naBuild)
 
     const ativos = new Set(rc.lista.map(a => W.normalizar(a.titulo)))
-    const outros = banco.challenges().filter(c => !ativos.has(W.normalizar(c.titulo)))
+    const todosOutros = banco.challenges().filter(c => !ativos.has(W.normalizar(c.titulo)))
+    // Anti-erro: com o chargen encerrado, os challenges só do chargen saem da lista; no DRX start, os que não valem no DR 11.
+    const fechado = !!(cfg.chargen && cfg.chargen.encerrado)
+    const soChargen = fechado ? todosOutros.filter(c => W.challengeSoNoChargen(c)) : []
+    const naoDR11 = rc.drx ? todosOutros.filter(c => c.semDR11 && !soChargen.includes(c)) : []
+    const outros = todosOutros.filter(c => !soChargen.includes(c) && !naoDR11.includes(c))
     const previa = (c) => {
       if (op.bonusChallenge === 'nenhum' || !(c.bonus > 0)) return ''
       const b = mesmoTitulo(c.titulo, 'Power Trip') ? rc.base : rc.baseOutros
@@ -805,7 +925,11 @@
       card3.append(h('details', { class: 'mais-campos', style: 'margin:14px 0 0' },
         h('summary', null, `Sem bônus de créditos (${semBonus.length})`), ...semBonus.map(itemOutro)))
     }
-    if (!outros.length) card3.append(h('p', { class: 'vazio', style: 'margin:0' }, 'Todos os challenges já estão na build.'))
+    if (!todosOutros.length) card3.append(h('p', { class: 'vazio', style: 'margin:0' }, 'Todos os challenges já estão na build.'))
+    const fora = []
+    if (soChargen.length) fora.push(`${soChargen.map(c => c.titulo).join(', ')}, que só valem no chargen (e o chargen está encerrado)`)
+    if (naoDR11.length) fora.push(`${naoDR11.map(c => c.titulo).join(', ')}, que não valem no DR 11 do DRX start`)
+    if (fora.length) card3.append(nota(`Fora da lista: ${fora.join('; ')}.${soChargen.length ? ' Se precisar de um deles, desmarque "Chargen encerrado" na aba Build.' : ''}`))
     box.append(card3)
   }
 
@@ -952,6 +1076,7 @@
       h('div', { class: 'tier' }, `T${tierTxt(x.tier)}`),
       h('div', { class: 'marcas', style: 'grid-column:1 / -1' },
         h('span', { class: 'selo metodo', title: m.desc }, m.nome),
+        x.drx ? h('span', { class: 'selo meu', title: "A companion de tier X ou Y que vem de graça com o DRX start e divide a Couple's Account com você." }, 'companion do DRX start') : null,
         x.vendido || x.papel !== 'Companion' ? h('span', { class: `selo papel${x.ativo ? '' : ' ruim2'}`, title: p.desc }, p.nome) : null,
         x.id ? botao('Ver as tags', () => verTags(x.id), 'leve', { style: 'min-height:28px;padding:2px 10px;font-size:12.5px' }) : null),
       det ? h('div', { class: 'det' }, det) : null)
@@ -1502,6 +1627,17 @@
         opcao('manterDiferencas', 'Manter as diferenças que o texto não explica', 'Quando uma linha não fecha a conta (custo escondido ou edição à mão), mantém a diferença em vez de refazer o saldo.', false),
       ].filter(Boolean))
       if (!cfg.casal) card1.append(nota("As outras opções aparecem quando a build tem Couple's Account."))
+      if (est.modelo && est.modelo.drx) {
+        const atual = op.drxDlc === 'verba' ? 'verba' : 'duplicados'
+        const escolha = (valor, titulo, explicacao) => h('label', { class: `escolha${atual === valor ? ' on' : ''}` },
+          h('input', { type: 'radio', name: 'drxDlc', value: valor, checked: atual === valor, onchange: () => { op.drxDlc = valor; reconstruir() } }),
+          h('span', null, h('b', null, titulo), h('small', null, explicacao)))
+        card1.append(h('h3', { style: 'margin:18px 0 4px' }, 'DRX start: DLC de blocos sem verba própria'),
+          nota('Heritage, Catch-a-Ride e Demiplanes & Dungeons cobrem DLC, porque a regra dessas verbas não diz "oficial". A de 600 diz, e a regra não diz de onde sai uma DLC de Talents, Misc Perks, Generic Waifu Perks e outros blocos.'),
+          h('div', { class: 'escolhas', role: 'radiogroup', 'aria-label': 'De onde sai a DLC no DRX start' },
+            escolha('duplicados', 'Do desconto de repetidos', 'A DLC é paga pelo desconto de Talents e Defenses repetidos, que vale como desconto em outra compra; o que sobra dele não vira crédito. É a conta das builds da Yami, do Tatsumi em RWBY e do Plum.'),
+            escolha('verba', 'Da verba de 600, sem repetidos', 'A DLC entra na verba de 600, e os repetidos não contam, porque no DRX start os Talents e as Defenses vieram de graça. É a conta da build do Tatsumi em Reincarnated as a Slime.')))
+      }
     }
     const card2 = h('div', { class: 'card' }, h('div', { class: 'card-topo' }, h('h2', null, 'O que a ferramenta faz')), h('ul', { class: 'regras' },
       h('li', null, 'Refaz o saldo de cada linha pelo custo escrito nela e aponta onde a conta não fecha.'),
@@ -1513,6 +1649,8 @@
       h('li', null, 'Challenges: o bônus em créditos entra na linha do challenge, sobre o budget da build (com a Intensity) ou pelos valores legados, como você escolher na aba Challenges. Bônus lançado à mão em Mission Rewards ("Power Trip in Challenges") vai para a linha do challenge, sem contar duas vezes.'),
       h('li', null, 'Mission Rewards: soma as recompensas em Credits e escreve uma missão e uma recompensa por linha.'),
       h('li', null, 'Retinue: lê como cada membro entrou ([buy], [yoink], [used], captura…) e a situação dele ({Familiar}, {Dead}, --SOLD…). Quem está morto, vendido, trocado ou em Exile não dá Defense Rebates.'),
+      h('li', null, 'DRX start: acha sozinho a linha "DRX start" e troca o Starting budget pelas verbas da criação (Heritage 400, Catch-a-Ride 545, Demiplanes & Dungeons 500 e 600 para os outros perks oficiais). Dá de graça a origem, uma binding básica, os Lures básicos, os Talents básicos, as Defenses e a companion de tier X ou Y, mostra quanto sobra em cada verba e confere as regras (tier 6, companion, opções que não combinam).'),
+      h('li', null, 'Chargen encerrado: guarda uma foto da build no fim da criação. Dali em diante, o que é só do chargen sai das listas e vira aviso se aparecer na build. No DRX start, as verbas ficam como estavam na foto, o que vem depois sai da conta normal, e as sobras ficam travadas até você marcar que os 7 dias passaram.'),
       h('li', null, 'Saves: guarda versões de cada build neste navegador e em arquivos .txt, que dá para carregar de novo aqui.'),
       h('li', null, 'Template Stacking e Waifu Perks são por pessoa e ficam como estão; o resto vale para os dois.')))
     const dados = banco.semDados
@@ -1535,6 +1673,7 @@
       sf.textContent = '—'
       sf.className = ''
       sa.textContent = ''
+      $('blocoDRX').replaceChildren()
       $('blocoAvisos').replaceChildren()
       $('blocoMudancas').replaceChildren(h('p', { class: 'vazio', style: 'margin:0' }, 'Cole uma build na aba Build. O resultado aparece aqui.'))
       $('blocoConferencia').replaceChildren()
@@ -1544,7 +1683,11 @@
     }
     sf.textContent = fmt(res.saldoFinal)
     sf.className = res.saldoFinal < 0 ? 'negativo' : ''
-    sa.textContent = res.saldoOriginal != null && Math.abs(res.saldoOriginal - res.saldoFinal) > 0.001 ? `(antes ${fmt(res.saldoOriginal)})` : ''
+    const notas = []
+    if (res.saldoTravado > 0) notas.push(`+${fmt(res.saldoTravado)} travados até os 7 dias`)
+    if (res.saldoOriginal != null && Math.abs(res.saldoOriginal - res.saldoFinal) > 0.001) notas.push(`antes ${fmt(res.saldoOriginal)}`)
+    sa.textContent = notas.length ? `(${notas.join(' · ')})` : ''
+    $('blocoDRX').replaceChildren(...(res.drx ? blocoDRXResultado(res.drx) : []))
     const ordem = { erro: 0, aviso: 1, info: 2 }
     const avisos = res.avisos.slice().sort((a, b) => ordem[a.nivel] - ordem[b.nivel])
     $('blocoAvisos').replaceChildren(...(avisos.length ? [h('h3', null, 'Avisos'), ...avisos.map(a => h('p', { class: `aviso ${a.nivel}` }, a.texto))] : []))
@@ -1594,6 +1737,10 @@
       if (!est.modelo) { e.target.checked = false; return }
       est.cfg = W.configPadrao(est.modelo, banco, Object.assign({}, est.cfg, { casalForcado: e.target.checked }))
       reconstruir()
+    })
+    $('chkChargen').addEventListener('change', (e) => {
+      if (!est.modelo) { e.target.checked = false; toast('Cole uma build primeiro.'); return }
+      mudarChargen(e.target.checked)
     })
     $('btnCopiar').addEventListener('click', copiarResultado)
     $('btnCopiar2').addEventListener('click', copiarResultado)

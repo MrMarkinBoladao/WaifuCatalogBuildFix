@@ -19,6 +19,27 @@ O Caderno lê o **Copy Text of Build** do Interactive, refaz as contas, mostra a
 
 O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. Um ponto no **Salvar** quer dizer que a build mudou desde a última versão salva.
 
+## Chargen encerrado
+
+- A caixa **Chargen encerrado**, ao lado de "Tratar como Couple's Account", vale para qualquer build. Marque quando a build sair da criação.
+- Ao marcar, a página guarda uma **foto** da build como está. Dali em diante, o que muda é comparado com ela.
+- **Anti-erro:** com o chargen encerrado, os challenges que só valem no chargen saem da lista "Pôr outro challenge". Se aparecer na build algo que só vale no chargen depois da foto (opção de Intensity, origem nova, Memoria, Yoink, Worlds Apart, challenge "Chargen only", DRX start), sai um aviso.
+- Precisa de algo do chargen? Desmarque, mexa e marque de novo. A foto continua a mesma; para trocar pela build de agora, use **Refazer a foto** em "O que a página leu".
+- Colar a mesma build de novo (mesmo mundo e mesma origem) mantém o chargen encerrado e a foto.
+- Se o chargen já passou faz tempo: cole o texto da build como estava no fim do chargen, marque **Chargen encerrado** e depois cole o texto de agora.
+
+## DRX start
+
+- A build com a linha `DRX start 10` no bloco Intensity (ou no bloco Mode, com Legacy Difficulty) é reconhecida sozinha.
+- O `Starting budget` do texto é só o número da tabela e sai. No lugar dele entram as verbas da criação: **Heritage 400**, **Catch-a-Ride 545**, **Demiplanes & Dungeons 500** e **600 para os outros perks oficiais** (inclusive as expansões de Binding e de Lure).
+- **De graça:** a origem, a binding básica (a raiz de uma árvore: Shroud of Power, Seal of Approval e Mystic Tattoo, Hypnosis App…), os Lures básicos (Sticky Fingers, Faerie Feast, Potpourri, Alluring Whisper, Love Spot), os 16 Talents básicos, as duas compras de todas as Defenses e a companion de tier X ou Y (vale Power Swap para X ou Y, Heavenbuilt Proto e Piece of Silver).
+- **Em qual verba cai cada compra:** Heritage, Rides e Home Perks têm verba própria, que cobre DLC também. A heritage conta o desconto de arquétipo. O resto sai da verba de 600, que é só para perks oficiais.
+- **DLC de outros blocos** (Talents, Misc Perks, Generic Waifu Perks…): por padrão, sai do desconto de Talents e Defenses repetidos, e o que sobra dele não vira crédito. Na aba Regras dá para trocar: a DLC entra na verba de 600, e os repetidos não contam.
+- A aba Build mostra cada verba com uma barra, o que entrou nela, quanto sobra e o que saiu de graça. O Resumo do Resultado mostra a versão curta. No texto corrigido, um bloco no fim diz o mesmo para a LLM.
+- **Confere:** Possess e Substitute até T6; Waifu Perk e Power Swap seus até T6; a companion de tier X ou Y; outras companions na criação (nenhuma verba cobre); verba que passou; Cash Still Rules, Wage Slave, Couple's Account e With A Little Help From My Friends, que não combinam; o Yoink de graça quando a build começa no mundo da companion. A Intensity fica travada em 10, e não há Defense Rebates nem bônus de challenge (o DR 11 não tem budget).
+- **As sobras:** com o chargen aberto, o saldo final é o que sobra das verbas. Com o **Chargen encerrado**, as verbas ficam como estavam na foto, o que foi comprado depois sai da conta normal, e as sobras ficam travadas: o saldo final mostra só o que dá para usar, e o topo mostra quanto está travado. Quando passarem os 7 dias (168 horas) na história, marque **Os 7 dias depois do chargen já passaram**, no card do DRX start.
+- A companion do DRX start divide a Couple's Account com você. Para dividir a heritage entre os dois, marque "Tratar como Couple's Account": ela vira o contractor 2, sem origem a pagar, e continua em "Companions bought".
+
 ## Saves
 
 - **Salvar** guarda uma versão da build aberta: o texto colado e tudo o que você marcou na página (tags, donos de heritage, challenges, missões). A primeira vez cria a build salva, com o nome dos contractors e do mundo; mude o nome na aba Saves.
@@ -74,7 +95,8 @@ O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. U
 ## O que é corrigido
 
 - O saldo de cada linha, pelo custo escrito nela. Linha que não fecha aparece nos Avisos.
-- A Intensity (1 + a soma das cláusulas) e o DR que o budget indica.
+- A Intensity (1 + a soma das cláusulas; no DRX start, travada em 10) e o DR que o budget indica.
+- **DRX start:** as verbas no lugar do Starting budget, o que sai de graça e as sobras (veja a seção DRX start).
 - **Couple's Account:**
   - o SO sai de "Companions bought" e vira a origem do contractor 2, no mesmo formato da linha do contractor 1, sem o "from";
   - o resumo do fim diz o mundo de cada contractor, tirado da build ou do personagem do banco. Se o resumo estiver desligado, o "from" continua na linha do SO;
@@ -93,6 +115,7 @@ Onde as regras deixam dúvida, a ferramenta escolhe um lado e deixa você trocar
 - **Waifu Perk e Power Swap da origem entram no preço da origem** (ligado). Assim, Rimuru T7 + Reaping the Harvest conta como uma origem de 500, igual à Elysia T9. Desligado, a Waifu Perk é paga à parte, e o exemplo fica 400 créditos mais caro.
 - **O SO ganha desconto de arquétipo** (ligado) e **as tags do SO contam nos Defense Rebates** (ligado). O Interactive não conta o SO em nenhum dos dois.
 - **Somar os brindes da 2ª cópia de heritage** (desligado). Ligado, os Talents e Defenses grátis entram de novo, e o que passar do limite volta como desconto de repetido.
+- **DRX start, DLC de blocos sem verba própria** (só em build DRX): do desconto de repetidos (padrão, a conta das builds da Yami, do Tatsumi em RWBY e do Plum) ou da verba de 600, sem repetidos (a conta do Tatsumi em Reincarnated as a Slime).
 
 ## Arquivos
 
@@ -101,4 +124,4 @@ Onde as regras deixam dúvida, a ferramenta escolhe um lado e deixa você trocar
 - `dados/interactive-dados.js`: preços de heritage, Talents e Defenses, a lista de challenges e as tags de 38 mil personagens, tirados do Interactive.
 - `ferramentas/atualizar-dados.bat`: baixa os dados do Interactive de novo e refaz a página (precisa do [Node.js](https://nodejs.org)). Rode quando o Interactive ganhar personagens ou perks novos.
 - `ferramentas/montar.mjs`: junta `fonte/` e os dados em `WaifuCatalogBuildFix.html` (`node montar.mjs`, dentro de `ferramentas`).
-- `ferramentas/testes.mjs`: testes das contas e de Meus personagens (`node testes.mjs`, dentro de `ferramentas`). Também confere se a página está em dia com `fonte/`.
+- `ferramentas/testes.mjs`: testes das contas e de Meus personagens (`node testes.mjs`, dentro de `ferramentas`). Também confere se a página está em dia com `fonte/`. Não edite `WaifuCatalogBuildFix.html` à mão: edite `fonte/` e rode `node montar.mjs`.
