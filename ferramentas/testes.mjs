@@ -391,7 +391,43 @@ if (pastaBuilds && fs.existsSync(pastaBuilds)) {
   }
 }
 
-// 5. A página montada tem de estar em dia com a pasta fonte/.
+// 5. Crédito é sempre inteiro: um bônus de 50% sobre budget ímpar não pode deixar ,5 no texto nem no saldo.
+{
+  console.log('\n=== Crédito inteiro (bônus de 50% sobre budget ímpar) ===')
+  // Como o Interactive escreve: o challenge entra "free" e o bônus é a ferramenta que calcula.
+  const doInteractive = [
+    'Starting World: SCP [When The Day Breaks - Scenario]',
+    'Starting budget 1135',
+    '',
+    'Challenges',
+    'Good Luck Smiles on the Daring free [1702.5]',
+    '',
+    'Intensity [4]',
+    'Emília Rossi as Amaterasu (Possess) of T10 -1000 [702.5]',
+    '',
+    'Home Perks',
+    'Pocket Space -5 [697.5]',
+    '',
+    'Misc Perks',
+    'Memoria -5 [692.5]',
+  ].join('\n')
+  const { r } = rodar(doInteractive)
+  confere('nenhum ,5 no texto corrigido', r.texto.split('\n').filter(l => /\d\.\d/.test(l)), [])
+  confere('bônus do challenge inteiro', r.challenges.lista.map(a => [a.titulo, a.valor]), [['Good Luck Smiles on the Daring', 568]])
+  confere('saldo final inteiro', Number.isInteger(r.saldoFinal), true)
+  confere('saldo final', r.saldoFinal, 693)
+  // Idempotente: colar o texto já inteiro de novo não muda o saldo nem a build.
+  const deNovo = rodar(r.texto)
+  confere('texto inteiro colado de novo mantém o saldo', deNovo.r.saldoFinal, 693)
+  confere('texto inteiro colado de novo não muda nada', deNovo.r.mudancas, [])
+  // Build que já veio com ,5 escrito (saída de uma versão antiga): os números saem inteiros.
+  const comMeio = doInteractive.replace('Good Luck Smiles on the Daring free [1702.5]', 'Good Luck Smiles on the Daring (challenge bonus: 50% of 1135) +567.5 [1702.5]')
+  const velho = rodar(comMeio)
+  confere('texto antigo com ,5 sai inteiro', velho.r.texto.split('\n').filter(l => /\d\.\d/.test(l)), [])
+  confere('texto antigo com ,5 mantém o saldo', velho.r.saldoFinal, 693)
+}
+
+// 6. A página montada tem de estar em dia com a pasta fonte/.
 {
   const { montar, SAIDA } = await import('./montar.mjs')
   const emDia = fs.existsSync(SAIDA) && fs.readFileSync(SAIDA, 'utf8') === montar()

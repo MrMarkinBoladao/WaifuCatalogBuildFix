@@ -217,7 +217,24 @@
   // ------------------------------------------------------------------ utilidades
 
   function num(s) { return parseFloat(String(s).replace(',', '.')) }
-  function arred(n) { return Math.round(n * 100) / 100 }
+  // Crédito é sempre inteiro: o Interactive conta em créditos inteiros, mas um bônus de 50% sobre um budget
+  // ímpar (1135 × 0,5 = 567,5) sai com ,5 e contamina todas as linhas e o saldo final. Meio crédito arredonda
+  // para cima, a favor de quem joga: o bônus rende o crédito extra e o custo nunca fica mais caro.
+  function arred(n) {
+    const v = Number(n)
+    if (!Number.isFinite(v)) return 0
+    const r = Math.round(v)
+    return r === 0 ? 0 : r
+  }
+  function cred(s) { return arred(num(s)) }
+  // Crédito escrito por extenso no texto: o Interactive às vezes escreve meio crédito ("+567.5"). O texto
+  // corrigido escreve o mesmo valor em créditos inteiros, para o número bater com o saldo da linha.
+  function inteirar(texto) {
+    return String(texto).replace(/([-+]?)(\d+)\.(\d+)$/, (m, sinal, inteiro, fracao) => {
+      const v = cred(`${sinal}${inteiro}.${fracao}`)
+      return (v > 0 && sinal === '+' ? '+' : '') + String(v)
+    })
+  }
   function fmt(n) { const r = arred(Number(n) || 0); return Object.is(r, -0) ? '0' : String(r) }
   function comSinal(n) { return (n >= 0 ? '+' : '') + fmt(n) }
   function oitenta(custo) { return Math.ceil(custo * 8 / 10 - 1e-9) }
@@ -321,8 +338,8 @@
       }
       let m
       if ((m = t.match(RX.mundo))) { L.tipo = 'mundo'; L.valor = m[1]; secao = modo = null; continue }
-      if ((m = t.match(RX.budget))) { L.tipo = 'budget'; L.valor = num(m[1]); secao = modo = null; continue }
-      if ((m = t.match(RX.emprestimo))) { L.tipo = 'emprestimo'; L.valor = num(m[1]); L.delta = L.valor; secao = modo = null; continue }
+      if ((m = t.match(RX.budget))) { L.tipo = 'budget'; L.valor = cred(m[1]); secao = modo = null; continue }
+      if ((m = t.match(RX.emprestimo))) { L.tipo = 'emprestimo'; L.valor = cred(m[1]); L.delta = L.valor; secao = modo = null; continue }
       if ((m = t.match(RX.intensidade))) { L.tipo = 'intensidade'; L.valor = num(m[1]); secao = 'Intensity'; modo = 'intensidade'; L.secao = secao; continue }
       if (CABECALHOS.has(t)) { L.tipo = 'cabecalho'; L.nome = t; secao = t; modo = null; L.secao = t; continue }
       if (modo === 'mods' && !/^Mission Rewards\b/.test(t) && (m = t.match(RX.mod))) {
@@ -346,16 +363,16 @@
       }
       // Daqui para baixo, a linha termina com [saldo].
       if (modo === 'intensidade') { modo = null; secao = null }
-      L.cabeca = s[1]; L.saldo = num(s[2]); L.doisPontos = s[3] === ':'
+      L.cabeca = s[1]; L.saldo = cred(s[2]); L.doisPontos = s[3] === ':'
       if ((m = L.cabeca.match(RX.capturados))) {
-        L.tipo = 'capturadosCab'; L.captura = num(m[1]); L.venda = num(m[2]); L.delta = L.captura + L.venda
+        L.tipo = 'capturadosCab'; L.captura = cred(m[1]); L.venda = cred(m[2]); L.delta = L.captura + L.venda
         secao = 'capturados'; modo = 'capturados'; continue
       }
       const v = L.cabeca.match(RX.valor)
       if (!v) continue
       const resto = v[1].trim()
       const tok = v[2]
-      const n = tok === 'free' ? 0 : num(tok)
+      const n = tok === 'free' ? 0 : cred(tok)
       const sinal = tok[0] === '-' ? -1 : (tok[0] === '+' ? 1 : 0)
       L.resto = resto
       if (RX.marcaFerramenta.test(resto) || RX.marcaFerramenta.test(t)) L.marca = true
@@ -534,9 +551,11 @@
       if (L.saldo == null) continue
       const esperadoLocal = arred(mostrado + L.delta)
       L.diferenca = 0
-      if (Math.abs(esperadoLocal - L.saldo) > 0.01) {
-        L.diferenca = arred(L.saldo - esperadoLocal)
-        erros.push({ linha: L, esperado: esperadoLocal, mostrado: L.saldo })
+      // Compara em créditos inteiros: o ,5 que o Interactive escreve num bônus de 50% não é erro de conta.
+      const dif = arred(L.saldo) - esperadoLocal
+      if (dif !== 0) {
+        L.diferenca = dif
+        erros.push({ linha: L, esperado: esperadoLocal, mostrado: arred(L.saldo) })
       }
       mostrado = L.saldo
       saldoFinalMostrado = L.saldo
@@ -1628,7 +1647,11 @@
       saldo = arred(saldo + e.delta)
       if (e.colchete) e.saldo = saldo
     }
-    const renderizar = e => (e.colchete ? `${e.texto} [${fmt(e.saldo)}]${e.doisPontos ? ':' : ''}` : e.texto)
+    // Só linha com custo/ganho tem crédito escrito no texto; nas outras (título, cabeçalho), um "2.5" é texto.
+    const renderizar = e => {
+      const cabeca = e.delta == null ? e.texto : inteirar(e.texto)
+      return e.colchete ? `${cabeca} [${fmt(e.saldo)}]${e.doisPontos ? ':' : ''}` : cabeca
+    }
     const texto = lista.map(renderizar).join('\n')
     // Para a tela: cada linha com o que aconteceu com ela.
     const linhasTela = ed.lista(true).map((e) => {

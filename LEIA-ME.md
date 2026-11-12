@@ -105,7 +105,7 @@ O saldo final e os botões **Salvar** e **Copiar texto** ficam sempre no topo. U
 
 ## O que é corrigido
 
-- O saldo de cada linha, pelo custo escrito nela. Linha que não fecha aparece nos Avisos.
+- O saldo de cada linha, pelo custo escrito nela. Linha que não fecha aparece nos Avisos. Crédito é sempre número inteiro: bônus que cai em meio crédito (50% de um budget ímpar, por exemplo) arredonda para cima, e nenhum ,5 aparece no saldo nem no texto.
 - A Intensity (1 + a soma das cláusulas; no DRX start, travada em 10) e o DR que o budget indica.
 - **DRX start:** as verbas no lugar do Starting budget, o que sai de graça e as sobras (veja a seção DRX start).
 - **Couple's Account:**

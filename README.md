@@ -10,7 +10,7 @@ A build checker for the [Waifu Catalog Interactive](https://waifu-catalog.neocit
 
 ## What it does
 
-- **Balance check:** recomputes every line from the cost written on it and points out the lines that do not add up.
+- **Balance check:** recomputes every line from the cost written on it and points out the lines that do not add up. Credits are always whole numbers: a bonus that lands on half a credit (50% of an odd budget, for instance) is rounded up, so no `,5` shows up in the balance.
 - **Couple's Account:** moves the SO out of Companions bought and makes them contractor 2. Only the more expensive origin is paid. Each contractor gets their own archetype discount, and a heritage that both buy costs the second one half.
 - **Defense Rebates:** each person with the tag gives up to 40% of one purchase of that Defense, capped at their tier's price, in the same order as the Interactive. Tags come from the Interactive's character database or from your own characters, and you can change them by hand.
 - **DRX start:** replaces the Starting budget with the chargen budgets (Heritage 400, Catch-a-Ride 545, Demiplanes & Dungeons 500, and 600 for other official perks), applies the freebies, and checks the DRX rules.

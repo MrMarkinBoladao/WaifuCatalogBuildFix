@@ -945,7 +945,7 @@
     const previa = (c) => {
       if (op.bonusChallenge === 'nenhum' || !(c.bonus > 0)) return ''
       const b = mesmoTitulo(c.titulo, 'Power Trip') ? rc.base : rc.baseOutros
-      return b != null ? `+${fmt(Math.round(b * c.bonus * 100) / 100)}` : '?'
+      return b != null ? `+${fmt(b * c.bonus)}` : '?'
     }
     const itemOutro = c => h('div', { class: 'chal' },
       h('div', null, h('b', null, c.titulo), c.bonus > 0 ? h('span', { class: 'nota' }, tr(' · {v1}% do budget', { v1: fmt(c.bonus * 100) })) : null),
