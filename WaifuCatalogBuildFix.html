@@ -4197,8 +4197,9 @@ window.WC_TRADUCAO_EN = {
     })
     const pote = minhaAposta + oponentes.reduce((a, o) => a + o.aposta, 0)
     const premioBase = pote + Math.floor(pote * 0.5)
-    // The Devil: +10% sobre os créditos que você receberia. Meio crédito arredonda para cima, como no resto da página.
-    const extraDevil = n => (devil ? arred(n * 0.1) : 0)
+    // The Devil: +10% sobre os créditos que você receberia. É crédito recebido, então arredonda para baixo, como a
+    // captura e a venda ("rounded down to the next full credit"); só preço de compra arredonda para cima.
+    const extraDevil = n => (devil ? Math.floor(n * 0.1 + 1e-9) : 0)
     const bonusArr = extraDevil(premioBase)
     const premioArr = premioBase + bonusArr
     const arranjado = {

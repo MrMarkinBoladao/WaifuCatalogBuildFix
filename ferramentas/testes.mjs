@@ -487,8 +487,8 @@ if (pastaBuilds && fs.existsSync(pastaBuilds)) {
   const dv = pvp(comDevil).p
   confere('The Devil detectado', dv.devil, true)
   confere('The Devil: orbs de graça', [dv.invasao.orb.tem, dv.invasao.orb.custo, dv.branco.orb.doDevil, dv.arranjado.azul.tem], [true, 0, true, false])
-  // 315 + 10% (31,5, meio crédito para cima) = 347.
-  confere('The Devil: +10% no Arranged', [dv.arranjado.premioBase, dv.arranjado.bonusDevil, dv.arranjado.premio], [315, 32, 347])
+  // 315 + 10% (31,5: crédito recebido arredonda para baixo, como captura e venda) = 346.
+  confere('The Devil: +10% no Arranged', [dv.arranjado.premioBase, dv.arranjado.bonusDevil, dv.arranjado.premio], [315, 31, 346])
   // Como o Interactive escreve o Patron: sem [saldo] no fim da linha.
   confere('The Devil sem [saldo]', pvp(WC_EXEMPLO.replace('Starting budget 960\n', 'Starting budget 960\n\nPatron\nThe Devil free\n')).p.devil, true)
   confere('sem The Devil, sem bônus', [p.devil, p.arranjado.bonusDevil, p.arranjado.premio], [false, 0, 315])
