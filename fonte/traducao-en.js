@@ -910,4 +910,13 @@ window.WC_TRADUCAO_EN = {
   "Ajuste das condições no prêmio (%)": "Conditions' reward adjustment (%)",
   "As condições do torneio mudam o prêmio (What's Mine Is Mine e Time Is On My Side: −20% cada). Ponha a soma aqui.": "Tournament conditions change the reward (What's Mine Is Mine and Time Is On My Side: −20% each). Enter the total here.",
   "PvP": "PvP",
+  "O patrono The Devil dá os Red e White Eye Orbs de graça.": "The Devil patron gives the Red and White Eye Orbs for free.",
+  "de graça (The Devil)": "free (The Devil)",
+  "Patrono The Devil: Red e White Eye Orbs de graça e +10% nos créditos que você ganhar no Arranged e no Gauntlet PvP. As contas abaixo já incluem isso.": "The Devil patron: free Red and White Eye Orbs and +10% to the credits you earn in Arranged and Gauntlet PvP. The numbers below already include it.",
+  "The Devil: quando você entra numa invasão, escolhe apoiar o invasor, o defensor ou ninguém, com uma aura escura que esconde o seu lado.": "The Devil: when you join an invasion, you choose to support the invader, the defender, or neither, with an inky aura that hides your allegiance.",
+  "The Devil: você não pode recusar os chamados do White Eye Orb.": "The Devil: you can't turn down White Eye Orb calls.",
+  "apostas {pote} + 50%, para baixo = {base}, + {bonus} do The Devil (10%) · lucro {lucro}": "wagers {pote} + 50%, rounded down = {base}, + {bonus} from The Devil (10%) · profit {lucro}",
+  "Prêmio por sobreviver (One In Ten)": "Survival prize (One In Ten)",
+  "{base} + {bonus} do The Devil (10%)": "{base} + {bonus} from The Devil (10%)",
+  "The Devil: +10% em todo crédito que o Gauntlet te der.": "The Devil: +10% on every credit the Gauntlet gives you.",
 }
