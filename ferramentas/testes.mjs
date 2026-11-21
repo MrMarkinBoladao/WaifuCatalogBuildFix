@@ -427,7 +427,70 @@ if (pastaBuilds && fs.existsSync(pastaBuilds)) {
   confere('texto antigo com ,5 mantém o saldo', velho.r.saldoFinal, 693)
 }
 
-// 6. A página montada tem de estar em dia com a pasta fonte/.
+// 6. Visualizador de PvP: PvP Asset Value, PvP Credit Value e os modos (Invasão, Arranged, Gauntlet, Tournament).
+{
+  console.log('\n=== PvP ===')
+  const pvp = (texto, ajuste) => {
+    const { modelo, cfg, r } = rodar(texto, ajuste)
+    return { cfg, r, p: WCFix.calcularPvP(modelo, cfg, r, banco) }
+  }
+  const { p } = pvp(WC_EXEMPLO)
+  // Séquito: Natsu T8 (Power Swap) 200 + Usagi T9 500 + Erza T7 100 = 800.
+  confere('séquito no PvP', p.membros.map(m => [m.nome, m.tier, m.preco]), [['Natsu Dragneel', 8, 200], [USAGI, 9, 500], ['Erza Scarlet', 7, 100]])
+  confere('PvP Asset Value', p.ativoTotal, 800)
+  // Controls 35 (Tempest 10, Luxury Goods 5, Love Spot 20) + Talents 100 (cópias repetidas contam uma; Template
+  // Stacking I x2 com alvos conta as duas) + Demiplanes & Dungeons 25 + Defenses 80 (Stress 5, Environmental 25, Trace 50).
+  confere('partes do Credit Value', [p.controles.total, p.talents.total, p.demiplanos.total, p.defesas.total], [35, 100, 25, 80])
+  confere('PvP Credit Value', p.creditValue, 1040)
+  confere('Red Eye Orb: faixa do alvo (25%)', [p.invasao.faixaAlvo.min, p.invasao.faixaAlvo.max], [640, 1000])
+  confere('Red Eye Orb: prêmio do invasor (25% de 800 + 800)', p.invasao.premioInvasor, 400)
+  confere('Red Eye Orb: sem o orb, custa 100 e o saldo paga', [p.invasao.orb.tem, p.invasao.orb.custo, p.invasao.orb.podePagar], [false, 100, true])
+  confere('Arranged: aposta de 10% (múltiplo de 5)', p.arranjado.minhaAposta, 105)
+  confere('Arranged: um oponente força 5 Average', [p.arranjado.oponentes[0].orcamento, p.arranjado.oponentes[0].aposta, p.arranjado.premio], [1040, 105, 315])
+  confere('Gauntlet: orçamento do 1º oponente', p.gauntlet.orcamento, 1040)
+  confere('Tournament: classes possíveis', p.torneio.classes.filter(c => c.pode).map(c => c.nome), ['Heavyweight', 'Anything Goes'])
+
+  // Força limitada: Usagi fica em casa. O Asset Value da força cai; o Credit Value usa o séquito todo.
+  const lim = pvp(WC_EXEMPLO, (c) => { c.pvp.fora.so = true }).p
+  confere('força limitada', [lim.ativoForca, lim.ativoTotal, lim.creditValue, lim.invasao.faixaAlvo.max], [300, 800, 1040, 375])
+  // Tier efetivo no passo 4 diferente do 1a.
+  const t4 = pvp(WC_EXEMPLO, (c) => { c.pvp.tiers['m:erza scarlet|fairy tail'] = 8 }).p
+  confere('tier efetivo do passo 4', [t4.ativoTotal, t4.creditValue], [900, 1140])
+  // Sem o contractor e o SO no séquito.
+  confere('sem os contractors', pvp(WC_EXEMPLO, (c) => { c.pvp.contractor = false }).p.ativoTotal, 100)
+
+  // Mortos e vendidos não contam; tier X vale 2000 (2 IMG); o Red Eye Orb já comprado não custa nada.
+  const solo = [
+    'Starting World: Fairy Tail',
+    'Starting budget 3000',
+    '',
+    'Intensity [0]',
+    'You as Natsu Dragneel (Possess) of T7 -100 [2900]',
+    '',
+    'Orbs',
+    'Red Eye Orb -100 [2800]',
+    '',
+    'Companions bought -2600 [200]',
+    'Erza Scarlet(T7)[buy]{Dead} from Fairy Tail',
+    'Lucy Heartfilia(T5)[buy] from Fairy Tail --SOLD',
+    'Acnologia(TX)[buy] from Fairy Tail',
+  ].join('\n')
+  const s1 = pvp(solo).p
+  confere('mortos e vendidos fora', s1.membros.map(m => [m.nome, m.conta]), [['Natsu Dragneel', true], ['Erza Scarlet', false], ['Lucy Heartfilia', false], ['Acnologia', true]])
+  confere('tier X vale 2000', s1.ativoTotal, 2100)
+  confere('Red Eye Orb na build', [s1.invasao.orb.tem, s1.invasao.orb.custo], [true, 0])
+  // Em dívida não entra em Arranged PvP.
+  const divida = pvp(solo.replace('Starting budget 3000', 'Starting budget 2700').replace(/\[(\d+)\]/g, (m, n) => `[${n - 300}]`)).p
+  confere('em dívida: sem Arranged', [divida.saldo < 0, divida.arranjado.podeEntrar], [true, false])
+  // As escolhas de PvP continuam quando a mesma build é colada de novo.
+  const m0 = WCFix.analisar(WC_EXEMPLO)
+  const c0 = WCFix.configPadrao(m0, banco)
+  c0.pvp.fora.so = true; c0.pvp.arranjado.oponentes.push({ forca: 9, habilidade: 'hardcore' })
+  const c1 = WCFix.configPadrao(m0, banco, JSON.parse(JSON.stringify(c0)))
+  confere('escolhas de PvP mantidas', [c1.pvp.fora.so, c1.pvp.arranjado.oponentes.length], [true, 2])
+}
+
+// 7. A página montada tem de estar em dia com a pasta fonte/.
 {
   const { montar, SAIDA } = await import('./montar.mjs')
   const emDia = fs.existsSync(SAIDA) && fs.readFileSync(SAIDA, 'utf8') === montar()
