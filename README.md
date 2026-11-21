@@ -17,6 +17,7 @@ A build checker for the [Waifu Catalog Interactive](https://waifu-catalog.neocit
 - **Chargen finished:** keeps a snapshot of the build at the end of chargen, warns about chargen-only purchases made later, and locks the DRX leftover until the 7 days pass.
 - **Challenges and missions:** adds the credit bonus of each challenge (Intensity-based or legacy values) and rewrites Mission Rewards one mission and one reward per line.
 - **Retinue:** reads how each member joined (`[buy]`, `[yoink]`, capture…) and their status (`{Familiar}`, `{Dead}`, `--SOLD`…). The dead, sold, traded, and Exiled give no Defense Rebates.
+- **PvP:** computes your PvP Asset Value and PvP Credit Value by the Interactive's rules (effective tiers after step 4, Catch-a-Ride, Controls, Talents, Demiplanes & Dungeons, first level of each Defense). You pick who fights and can change anyone's step-4 tier. It shows, for each mode, what you need and what you can win: the Red Eye Orb's 25% matchmaking range and invasion prize, the White Eye Orb range, the Arranged PvP / Blue Eye Orb wager (10% of your Credit Value) against your balance, opponents' budgets and the pot, Gauntlet budgets, and which Tournament weight classes your force fits.
 - **Saves:** keeps every version of each build in your browser, and downloads or loads `.txt` files and full backups.
 - **My characters:** characters that are not in the Interactive's database, or copies with your own tags. You can import the ones you created in the Interactive.
 

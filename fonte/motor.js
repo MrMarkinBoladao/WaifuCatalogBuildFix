@@ -626,6 +626,13 @@
     const challengePorNome = new Map(challenges.map(c => [normalizar(c.titulo), c]))
     // Perks que só se compram no chargen: os marcados no arquivo de dados, mais a lista daqui.
     const soNoChargen = new Set([...SO_NO_CHARGEN, ...((dados && dados.perks) || []).filter(p => p && p.cg).map(p => p.n)].map(normalizar))
+    // Preço de lista dos outros perks (bindings, lures, Demiplanes & Dungeons, Catch-a-Ride…), para o valor de PvP.
+    const perksPorNome = new Map()
+    for (const p of (dados && dados.perks) || []) {
+      if (!p || typeof p.n !== 'string' || typeof p.c !== 'number') continue
+      const k = normalizar(p.n)
+      if (!perksPorNome.has(k)) perksPorNome.set(k, p)
+    }
 
     // Meus personagens: índice próprio, refeito a cada definirMeus().
     let meusPorId = new Map()
@@ -709,6 +716,7 @@
       precoDefesa(curto) { const n = this.nomeDefesa(curto); return n ? defenses[n] : null },
       precoDefesaCompleto(nome) { return defenses[nome] ?? null },
       precoTalentCompleto(nome) { return talents[nome] ?? null },
+      perk(titulo) { return perksPorNome.get(normalizar(titulo)) || null },
     }
   }
 
@@ -1006,6 +1014,8 @@
       // Missões de Mission Rewards. A assinatura diz se as do texto mudaram desde a última edição.
       missoes: copiarMissoes(modelo.missoes),
       assinaturaMissoes: assinaturaMissoes(modelo.missoes),
+      // Visualizador de PvP: tiers efetivos no passo 4, quem vai para a luta e os números de cada modo.
+      pvp: pvpPadrao(),
     }
     if (anterior) {
       cfg.opcoes = Object.assign(cfg.opcoes, anterior.opcoes || {})
@@ -1020,6 +1030,7 @@
       const cg = anterior.chargen
       if (cg && typeof cg === 'object') cfg.chargen = { encerrado: !!cg.encerrado, foto: limparFoto(cg.foto) }
       if (anterior.drx && typeof anterior.drx === 'object') cfg.drx = { seteDias: !!anterior.drx.seteDias }
+      if (anterior.pvp && typeof anterior.pvp === 'object') cfg.pvp = limparPvp(anterior.pvp)
     }
     // Donos e modificadores do modo anterior só valem se o modo (casal ou não) não mudou.
     const mesmoModo = !!anterior && !!anterior.casal === !!cfg.casal
@@ -2380,6 +2391,267 @@
     }
   }
 
+  // ------------------------------------------------------------------ PvP
+  //
+  // Regras da seção "Other Contractors" do Interactive (PvP Glossary, Invasion, Arranged, Gauntlet e Tournament):
+  //  - PvP Asset Value: a soma dos preços de lista dos tiers efetivos do séquito depois do passo 4, mais os preços de
+  //    lista dos veículos de Catch-a-Ride. Tier imaginário vale o câmbio do IMG (1 IMG = 1000 créditos: X 2000,
+  //    Y 5000, Z 10000). Se só uma parte do séquito vai para a luta, só ela conta.
+  //  - PvP Credit Value: o PvP Asset Value total, mais os preços de lista dos Controls (Bindings, Lures e Other
+  //    Controls), dos Talents, dos perks de Demiplanes & Dungeons e do primeiro nível de cada Defense.
+  //  - Invasão (Red Eye Orb, 100): o PvP Credit Value do alvo e o PvP Asset Value da sua força não podem diferir
+  //    mais de 25%. O vencedor leva 25% (arredondado para cima) da soma do Asset Value de todas as forças fantasmas
+  //    e do Credit Value do defensor; se o lado defensor vence, o prêmio é dividido entre o defensor e os aliados.
+  //  - White Eye Orb (75): a força do aliado fica entre 80% do maior e 125% do menor (defensor e invasor).
+  //  - Arranged PvP (e Blue Eye Orb, 15): cada um aposta uma parte do PvP Credit Value (Casual 5%, Average 10%,
+  //    Hardcore 15%; quem joga é Average), arredondada para o múltiplo de 5 mais perto e tirada da conta na entrada.
+  //    O orçamento de cada oponente é o seu PvP Credit Value vezes o multiplicador da força (1 a 9), também
+  //    arredondado para o múltiplo de 5. Quem vence leva todas as apostas mais 50% (arredondado para baixo).
+  //    Em dívida (saldo abaixo de zero) não se entra em Arranged PvP nem se compra nada.
+  //  - Gauntlet: o orçamento do oponente é P × (1 + E/100), arredondado para cima (P = PvP Credit Value, E = contractors
+  //    eliminados).
+  //  - Tournament (Black Eye Orb, 20): cinco classes de peso, cada uma com teto de tier e de PvP Asset Value do time.
+  //    Vencer a rodada 2 rende classe × 50 créditos, e o prêmio dobra a cada duas rodadas.
+
+  const ORBS_PVP = {
+    'Red Eye Orb': { custo: 100 }, 'White Eye Orb': { custo: 75 }, 'Blue Eye Orb': { custo: 15 },
+    'Green Eye Orb': { custo: 10 }, 'Black Eye Orb': { custo: 20 },
+  }
+  // Força do oponente no Arranged PvP: multiplicador sobre o seu PvP Credit Value.
+  const FORCA_ARRANJADO = [null, 1 / 3, 2 / 5, 1 / 2, 2 / 3, 1, 1.5, 2, 2.5, 3]
+  const FORCA_ARRANJADO_TXT = [null, '×1/3', '×2/5', '×1/2', '×2/3', '×1', '×1.5', '×2', '×2.5', '×3']
+  const APOSTA_ARRANJADO = { casual: 0.05, average: 0.10, hardcore: 0.15 }
+  const CLASSES_TORNEIO = [
+    { n: 1, nome: 'Flyweight', tierMax: 3, ativoMax: 40 },
+    { n: 2, nome: 'Lightweight', tierMax: 6, ativoMax: 200 },
+    { n: 3, nome: 'Middleweight', tierMax: 8, ativoMax: 1000 },
+    { n: 4, nome: 'Heavyweight', tierMax: 10, ativoMax: 5000 },
+    { n: 5, nome: 'Anything Goes', tierMax: 99, ativoMax: 25000 },
+  ]
+  const BLOCOS_CONTROLE = ['Bindings', 'Lures', 'Other Controls']
+  const CATS_RIDE_PERK = ['RidePerk']
+
+  const multiplo5 = n => Math.round(n / 5) * 5
+
+  function pvpPadrao() {
+    return {
+      contractor: true, // o contractor (e o SO) entra no séquito para o PvP Asset Value
+      ridePerks: false, // os perks de Catch-a-Ride (Crew, Extended Warranty…) contam como parte do veículo
+      tiers: {}, // chave do membro -> tier efetivo no passo 4, quando é diferente do passo 1a
+      fora: {}, // chave do membro -> true: não vai para a luta (força limitada)
+      invasao: { alvo: null, aliadosAlvo: 0, invasor: null, aliados: 0 },
+      aliado: { defensor: null, invasor: null },
+      arranjado: { oponentes: [{ forca: 5, habilidade: 'average' }] },
+      gauntlet: { eliminados: 0, time: 0 },
+      torneio: { bonus: 0 },
+    }
+  }
+  function limparPvp(p) {
+    const base = pvpPadrao()
+    if (!p || typeof p !== 'object') return base
+    const numOuNull = v => (Number.isFinite(v) && v >= 0 ? Math.round(v) : null)
+    const r = base
+    r.contractor = p.contractor !== false
+    r.ridePerks = !!p.ridePerks
+    for (const [k, v] of Object.entries(p.tiers || {})) if (Number.isInteger(v) && v >= 0 && v <= 13) r.tiers[k] = v
+    for (const [k, v] of Object.entries(p.fora || {})) if (v) r.fora[k] = true
+    const iv = p.invasao || {}
+    const ate3 = v => Math.max(0, Math.min(3, parseInt(v, 10) || 0))
+    r.invasao = { alvo: numOuNull(iv.alvo), aliadosAlvo: ate3(iv.aliadosAlvo), invasor: numOuNull(iv.invasor), aliados: ate3(iv.aliados) }
+    const al = p.aliado || {}
+    r.aliado = { defensor: numOuNull(al.defensor), invasor: numOuNull(al.invasor) }
+    const ops = Array.isArray(p.arranjado && p.arranjado.oponentes) ? p.arranjado.oponentes : base.arranjado.oponentes
+    r.arranjado = {
+      oponentes: ops.slice(0, 11).map(o => ({
+        forca: Math.max(1, Math.min(9, parseInt(o && o.forca, 10) || 5)),
+        habilidade: APOSTA_ARRANJADO[o && o.habilidade] != null ? o.habilidade : 'average',
+      })),
+    }
+    const g = p.gauntlet || {}
+    r.gauntlet = { eliminados: Math.max(0, parseInt(g.eliminados, 10) || 0), time: numOuNull(g.time) || 0 }
+    const t = p.torneio || {}
+    r.torneio = { bonus: Number.isFinite(t.bonus) ? Math.max(-100, Math.min(500, Math.round(t.bonus))) : 0 }
+    return r
+  }
+  // Chave estável de um membro do séquito (o número da linha muda quando o texto muda).
+  function chaveMembroPvp(x, vistas) {
+    const base = `m:${normalizar(x.nome)}|${normalizar(x.mundo)}`
+    const n = (vistas[base] = (vistas[base] || 0) + 1)
+    return n > 1 ? `${base}#${n}` : base
+  }
+
+  // Preço de lista de uma linha de compra: o do Interactive, se a página conhece o perk; senão, o que a linha cobra.
+  function precoListaItem(L, banco, cat) {
+    if (cat === 'talent') { const p = banco.precoTalent(L.titulo); if (p != null) return { unit: p, conhecido: true } }
+    else if (cat === 'defesa') { const p = banco.precoDefesa(L.titulo); if (p != null) return { unit: p, conhecido: true } }
+    else { const p = banco.perk && banco.perk(L.titulo); if (p) return { unit: Math.max(0, p.c), conhecido: true, perk: p } }
+    const q = L.qtd || 1
+    return { unit: Math.max(0, (L.custo || 0) / q), conhecido: false }
+  }
+
+  function calcularPvP(modelo, cfg, res, banco) {
+    banco = banco || bancoMinimo()
+    const op = limparPvp(cfg && cfg.pvp)
+    // As compras saem do texto corrigido, que já tem os brindes e as linhas da Couple's Account.
+    const md = res && res.texto ? analisar(res.texto) : modelo
+    const itens = md.linhas.filter(L => L.tipo === 'item')
+
+    // ---- séquito
+    const membros = []
+    const poe = (chave, nome, tipo, tier1aV, mundo, ativo, motivo) => {
+      const tierEf = op.tiers[chave] != null ? op.tiers[chave] : tier1aV
+      const ehContr = tipo === 'contractor' || tipo === 'so'
+      const conta = ativo && (!ehContr || op.contractor)
+      membros.push({
+        chave, nome, tipo, mundo: mundo || '', tier1a: tier1aV, tier: tierEf, mexido: op.tiers[chave] != null,
+        preco: precoTier(tierEf), ativo, conta, motivo: motivo || null, naForca: conta && !op.fora[chave],
+      })
+    }
+    if (cfg && cfg.c1) poe('c1', nomeComApelido(cfg.c1) || cfg.c1.nome, 'contractor', tier1a(cfg.c1), cfg.c1.mundo, true)
+    if (cfg && cfg.casal && cfg.so) poe('so', nomeComApelido(cfg.so) || cfg.so.nome, 'so', tier1a(cfg.so), cfg.so.mundo, true)
+    const vistas = {}
+    for (const x of (res && res.sequito ? res.sequito.membros : [])) {
+      const t = (x.perk && x.perk.tier) || (x.swap && x.swap.tier) || x.tier || 0
+      const motivo = x.vendido ? 'vendido' : (x.ativo ? null : x.papel)
+      poe(chaveMembroPvp(x, vistas), x.swap ? `${x.nome} → ${x.swap.nome}` : x.nome, 'membro', t, x.mundo, x.ativo, motivo)
+    }
+
+    // ---- Catch-a-Ride
+    const rides = []
+    for (const L of itens.filter(L => L.secao === 'Rides')) {
+      const pr = precoListaItem(L, banco, 'ride')
+      const ehPerk = !!(pr.perk && CATS_RIDE_PERK.includes(pr.perk.cat))
+      const valor = Math.round(pr.unit * (L.qtd || 1))
+      rides.push({ titulo: rotuloCompra(L), valor, perk: ehPerk, conta: !ehPerk || op.ridePerks, conhecido: pr.conhecido })
+    }
+
+    // ---- o resto do PvP Credit Value
+    const grupo = (filtro, cat, porCopia) => {
+      const lista = []
+      const vistos = new Set()
+      for (const L of itens.filter(filtro)) {
+        const pr = precoListaItem(L, banco, cat)
+        let copias = L.qtd || 1
+        if (cat === 'defesa') {
+          // Só o primeiro nível de cada Defense.
+          const k = normalizar(L.titulo)
+          if (vistos.has(k)) continue
+          vistos.add(k); copias = 1
+        } else if (cat === 'talent' && !porCopia(L)) {
+          // A cópia repetida de um Talent volta como desconto ("Discounted for duplicate talents"): conta uma.
+          copias = 1
+        }
+        lista.push({ titulo: rotuloCompra(L), secao: L.secao, copias, valor: Math.round(pr.unit * copias), conhecido: pr.conhecido })
+      }
+      return { itens: lista, total: lista.reduce((a, x) => a + x.valor, 0) }
+    }
+    const controles = grupo(L => BLOCOS_CONTROLE.includes(L.secao), 'perk')
+    const talents = grupo(L => L.secao === 'Talents', 'talent', L => !!L.complexo)
+    const demiplanos = grupo(L => L.secao === 'Home Perks', 'perk')
+    const defesas = grupo(L => L.secao === 'Defenses', 'defesa')
+
+    const valorRides = rides.filter(r => r.conta).reduce((a, r) => a + r.valor, 0)
+    const ativoTotal = membros.filter(m => m.conta).reduce((a, m) => a + m.preco, 0) + valorRides
+    const ativoForca = membros.filter(m => m.naForca).reduce((a, m) => a + m.preco, 0) + valorRides
+    const creditValue = ativoTotal + controles.total + talents.total + demiplanos.total + defesas.total
+    const tierMaxForca = membros.filter(m => m.naForca).reduce((a, m) => Math.max(a, m.tier), 0)
+
+    // ---- saldo e orbs
+    const saldo = res ? res.saldoFinal : 0
+    const divida = saldo < 0
+    const orbsNaBuild = itens.filter(L => L.secao === 'Orbs').map(L => L.titulo)
+    const temOrb = nome => orbsNaBuild.some(t => normalizar(t) === normalizar(nome))
+    const skyblock = (md.challenges || []).some(L => /^skyblock$/i.test(String(L.titulo || '').trim()))
+    const nahIdWin = (md.opcoesInt || []).some(L => /^Nah, I.d Win\.?$/i.test(String(L.nome || '').trim()))
+      || itens.some(L => /^Nah, I.d Win\.?$/i.test(String(L.titulo || '').trim()))
+    const orb = (nome) => {
+      const tem = temOrb(nome)
+      const custo = tem ? 0 : ORBS_PVP[nome].custo
+      const bloqueado = nome === 'Red Eye Orb' && skyblock && !tem
+      return { nome, tem, preco: ORBS_PVP[nome].custo, custo, bloqueado, podePagar: !bloqueado && !divida && saldo >= custo }
+    }
+
+    // ---- Invasão (Red Eye Orb)
+    const A = ativoForca
+    const C = creditValue
+    const red = orb('Red Eye Orb')
+    const iv = op.invasao
+    const alvo = iv.alvo != null ? iv.alvo : A
+    // O alvo pode chamar até três aliados (White Eye Orb). Eles também são forças fantasmas e entram no prêmio.
+    // Sem o número de cada um, a conta usa o meio do caminho entre a sua força e o Credit Value do alvo.
+    const nAliadosAlvo = iv.aliadosAlvo
+    const forcaAliadoAlvo = Math.round((A + alvo) / 2)
+    const premioInvasor = Math.ceil(0.25 * (A + nAliadosAlvo * forcaAliadoAlvo + alvo) - 1e-9)
+    const invasor = iv.invasor != null ? iv.invasor : C
+    const nAliados = iv.aliados
+    // Quando você defende: cada aliado manda uma força no mesmo nível (entre 80% do maior e 125% do menor); sem
+    // número, a conta usa a média entre o seu Credit Value e a força do invasor.
+    const forcaAliado = Math.round((C + invasor) / 2)
+    const poteDefesa = Math.ceil(0.25 * (invasor + nAliados * forcaAliado + C) - 1e-9)
+    const invasao = {
+      orb: red,
+      faixaAlvo: { min: Math.ceil(A / 1.25 - 1e-9), max: Math.floor(A * 1.25 + 1e-9) },
+      faixaInvasor: { min: Math.ceil(C / 1.25 - 1e-9), max: Math.floor(C * 1.25 + 1e-9) },
+      alvo, alvoNaFaixa: alvo >= Math.ceil(A / 1.25 - 1e-9) && alvo <= Math.floor(A * 1.25 + 1e-9),
+      nAliadosAlvo, forcaAliadoAlvo, premioInvasor,
+      invasor, nAliados, forcaAliado, poteDefesa, parteDefesa: Math.floor(poteDefesa / (1 + nAliados)),
+      nahIdWin, skyblock,
+    }
+
+    // ---- White Eye Orb
+    const al = op.aliado
+    const D = al.defensor != null ? al.defensor : A
+    const V = al.invasor != null ? al.invasor : A
+    const faixaAliado = { min: Math.ceil(0.8 * Math.max(D, V) - 1e-9), max: Math.floor(1.25 * Math.min(D, V) + 1e-9) }
+    const branco = {
+      orb: orb('White Eye Orb'), defensor: D, invasor: V, faixa: faixaAliado,
+      cabe: faixaAliado.min <= faixaAliado.max && A >= faixaAliado.min && A <= faixaAliado.max,
+      faixaVazia: faixaAliado.min > faixaAliado.max,
+    }
+
+    // ---- Arranged PvP (e o duelo do Blue Eye Orb)
+    const minhaAposta = multiplo5(C * APOSTA_ARRANJADO.average)
+    const oponentes = op.arranjado.oponentes.map((o) => {
+      const orcamento = multiplo5(C * FORCA_ARRANJADO[o.forca])
+      const aposta = multiplo5(orcamento * APOSTA_ARRANJADO[o.habilidade])
+      return { ...o, mult: FORCA_ARRANJADO_TXT[o.forca], orcamento, aposta }
+    })
+    const pote = minhaAposta + oponentes.reduce((a, o) => a + o.aposta, 0)
+    const premioArr = pote + Math.floor(pote * 0.5)
+    const arranjado = {
+      minhaAposta, oponentes, pote, premio: premioArr, lucro: premioArr - minhaAposta,
+      podeEntrar: !divida && saldo >= minhaAposta, saldoDepois: saldo - minhaAposta,
+      azul: orb('Blue Eye Orb'),
+      podeDuelo: !divida && saldo >= minhaAposta + (temOrb('Blue Eye Orb') ? 0 : ORBS_PVP['Blue Eye Orb'].custo),
+    }
+
+    // ---- Gauntlet
+    const P = C + op.gauntlet.time
+    const E = op.gauntlet.eliminados
+    const proximos = []
+    for (let e = E; e < E + 5; e++) proximos.push({ eliminados: e, orcamento: Math.ceil(P * (1 + e / 100) - 1e-9) })
+    const gauntlet = { P, eliminados: E, time: op.gauntlet.time, orcamento: proximos[0].orcamento, proximos }
+
+    // ---- Tournament (Black Eye Orb)
+    const fator = 1 + op.torneio.bonus / 100
+    const classes = CLASSES_TORNEIO.map((c) => {
+      const okTier = tierMaxForca <= c.tierMax
+      const okAtivo = A <= c.ativoMax
+      const premios = [2, 4, 6, 8, 10].map((rodada, k) => ({ rodada, valor: Math.floor(c.n * 50 * (2 ** k) * fator + 1e-9) }))
+      return { ...c, okTier, okAtivo, pode: okTier && okAtivo, premios }
+    })
+    const torneio = { orb: orb('Black Eye Orb'), tierMax: tierMaxForca, classes, bonus: op.torneio.bonus }
+
+    return {
+      op, membros, rides, controles, talents, demiplanos, defesas,
+      valorRides, ativoTotal, ativoForca, creditValue, tierMaxForca,
+      forcaLimitada: membros.some(m => m.conta && !m.naForca),
+      saldo, divida, orbsNaBuild,
+      invasao, branco, arranjado, gauntlet, torneio,
+      semPreco: [...controles.itens, ...talents.itens, ...demiplanos.itens, ...defesas.itens, ...rides].filter(x => !x.conhecido).map(x => x.titulo),
+    }
+  }
+
   raiz.WCFix = {
     analisar, criarBanco, bancoMinimo, configPadrao, calcular,
     pessoaSO, pessoaCompanion, refazerCompanions, fontesSO, tagsDoPersonagem, resolverPessoa, resolverTudo, alternarTag, semMexidas,
@@ -2390,5 +2662,6 @@
     PRECO_TIER, TAG_DEFESA, DEFESA_TAG, TAG_ARQUETIPO, ARQUETIPOS, TIPOS_ORIGEM, CONDICAO_DEFESA, CHALLENGES_PADRAO,
     METODOS_SEQUITO, PAPEIS_SEQUITO, VENDIDO_SEQUITO, FORA_DOS_REBATES, VERBAS_DRX, TOTAL_DRX,
     fmt, tierTxt, tierNum, precoTier, normalizar, semPrefixo, curtoDefesa,
+    calcularPvP, pvpPadrao, limparPvp, ORBS_PVP, FORCA_ARRANJADO_TXT, APOSTA_ARRANJADO, CLASSES_TORNEIO,
   }
 })(typeof window !== 'undefined' ? window : globalThis)

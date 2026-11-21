@@ -135,6 +135,7 @@ body[data-aba="build"] [data-painel="build"], body[data-aba="pessoas"] [data-pai
 body[data-aba="heritage"] [data-painel="heritage"], body[data-aba="resultado"] [data-painel="resultado"],
 body[data-aba="challenges"] [data-painel="challenges"], body[data-aba="missoes"] [data-painel="missoes"],
 body[data-aba="saves"] [data-painel="saves"], body[data-aba="retinue"] [data-painel="retinue"],
+body[data-aba="pvp"] [data-painel="pvp"],
 body[data-aba="meus"] [data-painel="meus"], body[data-aba="regras"] [data-painel="regras"] { display: block; }
 @media (min-width: 1100px) {
   .layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(400px, 1fr); gap: 20px; align-items: start; }
@@ -411,3 +412,27 @@ ol.passos li { margin-bottom: 4px; }
   background: var(--texto); color: var(--fundo); font-size: 14px; box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
 }
 @media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
+
+/* ------------------------------------------------------------------ PvP */
+.pvp-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px; margin-bottom: 4px; }
+.pvp-num { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--acento-suave); }
+.pvp-num span { font-size: 12.5px; color: var(--suave); }
+.pvp-num b { font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pvp-num small { font-size: 12px; color: var(--suave); }
+.rolar { overflow-x: auto; }
+.pvp-tabela select { min-height: 34px; max-width: 150px; }
+.pvp-tabela td:first-child { width: 28px; }
+.pvp-grupo { padding: 8px 0; border-top: 1px solid var(--borda); font-size: 14px; }
+.pvp-grupo > summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; }
+.pvp-grupo.fixo { display: flex; justify-content: space-between; gap: 12px; margin: 0; }
+.pvp-grupo b { font-variant-numeric: tabular-nums; }
+.pvp-grupo.total { font-weight: 700; border-top: 2px solid var(--borda-forte); }
+.pvp-grupo ul.lista { margin-top: 6px; font-size: 13.5px; }
+#painel-pvp .total-linha { margin-top: 12px; }
+/* Tabelas da aba PvP: continuam tabela no celular, com rolagem para o lado. */
+@media (max-width: 640px) {
+  .tabela.fixa { display: table; } .tabela.fixa thead { display: table-header-group; } .tabela.fixa tbody { display: table-row-group; }
+  .tabela.fixa tr { display: table-row; padding: 0; } .tabela.fixa td, .tabela.fixa th { display: table-cell; width: auto; padding: 6px 4px; border-bottom: 1px solid var(--borda); }
+  .tabela.fixa .n { text-align: right; }
+  .pvp-tabela select { max-width: 112px; font-size: 13px; }
+}

@@ -19,11 +19,11 @@
   // As builds salvas, com todas as versões.
   const CHAVE_BUILDS = 'wcfix:builds:v1'
   const S = window.WCSaves
-  const ABAS = ['build', 'saves', 'pessoas', 'retinue', 'heritage', 'challenges', 'missoes', 'resultado', 'meus', 'regras']
+  const ABAS = ['build', 'saves', 'pessoas', 'retinue', 'pvp', 'heritage', 'challenges', 'missoes', 'resultado', 'meus', 'regras']
   const TIPOS_RECOMPENSA = ['Credits', 'TX Tickets', 'IMG Tickets', 'Perk', 'Companion', 'Other']
   const ORDEM = Object.keys(W.TAG_DEFESA)
   const est = {
-    modelo: null, cfg: null, res: null,
+    modelo: null, cfg: null, res: null, pvp: null,
     aba: 'build', sub: 'resumo',
     meus: [],
     editor: null, // { r: registro em edição, novo, voltarPara: chave da pessoa da build }
@@ -282,6 +282,7 @@
     atualizarDRX()
     atualizarPessoas()
     atualizarRetinue()
+    montarPvp()
     montarHeritage()
     montarChallenges()
     atualizarMissoes()
@@ -1123,6 +1124,203 @@
     if (c && c.scrollIntoView) {
       c.scrollIntoView({ block: 'start' })
       window.scrollBy(0, -($('topo').offsetHeight + 60))
+    }
+  }
+
+  // ---------------------------------------------------------------- aba PvP
+  // O valor de PvP não muda o saldo: mexer aqui só refaz esta aba (e salva), sem refazer a conta da build.
+  function mudarPvp(fn) {
+    if (!est.cfg) return
+    est.cfg.pvp = W.limparPvp(est.cfg.pvp)
+    fn(est.cfg.pvp)
+    montarPvp()
+    salvar()
+  }
+  // Campo de número que só aplica ao sair do campo ou apertar Enter (o resto da aba é refeito).
+  function numeroPvp(valor, aoMudar, props) {
+    return h('input', {
+      type: 'number', min: '0', step: '1', inputmode: 'numeric', value: valor == null ? '' : String(valor), ...(props || {}),
+      onchange: (e) => { const t = e.target.value.trim(); aoMudar(t === '' ? null : Math.max(0, Math.round(parseFloat(t) || 0))) },
+    })
+  }
+  const cr = n => `${fmt(n)} cr`
+  function linhaOk(ok, sim, nao) { return h('span', { class: `selo ${ok ? 'bom' : 'ruim'}` }, ok ? sim : nao) }
+  function statusOrb(o) {
+    if (o.tem) return h('span', { class: 'selo bom' }, tr('na build'))
+    if (o.bloqueado) return h('span', { class: 'selo ruim' }, tr('o Skyblock não deixa comprar'))
+    return h('span', { class: `selo ${o.podePagar ? 'meu' : 'ruim'}` }, o.podePagar ? tr('falta comprar: {preco}', { preco: cr(o.preco) }) : tr('falta comprar: {preco} (o saldo não dá)', { preco: cr(o.preco) }))
+  }
+
+  function montarPvp() {
+    const box = $('painelPvp')
+    if (!box) return
+    // Guarda o campo em foco para devolver o foco depois de refazer a aba.
+    const focado = document.activeElement && box.contains(document.activeElement) ? document.activeElement.dataset.foco : null
+    box.replaceChildren()
+    if (!est.modelo || !est.res) { est.pvp = null; box.append(cardVazio(tr('Cole uma build na aba Build primeiro.'))); return }
+    est.cfg.pvp = W.limparPvp(est.cfg.pvp)
+    const p = est.pvp = W.calcularPvP(est.modelo, est.cfg, est.res, banco)
+    const op = p.op
+
+    // ---- os três números
+    const numero = (rotulo, valor, sub) => h('div', { class: 'pvp-num' }, h('span', null, rotulo), h('b', null, fmt(valor)), sub ? h('small', null, sub) : null)
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('Valor de PvP')), h('small', null, tr('pelas regras de "Other Contractors" do Interactive'))),
+      h('div', { class: 'pvp-nums' },
+        numero('PvP Asset Value', p.ativoForca, p.forcaLimitada ? tr('da força que vai lutar · séquito todo: {total}', { total: fmt(p.ativoTotal) }) : tr('o séquito todo')),
+        numero('PvP Credit Value', p.creditValue, tr('Asset Value total + Controls, Talents, Demiplanes & Dungeons e Defenses')),
+        numero(tr('Saldo livre'), p.saldo, p.divida ? tr('em dívida: não compra nada nem entra em Arranged PvP') : tr('o saldo final da build'))),
+      nota(tr('PvP Asset Value: a soma dos preços de lista dos tiers efetivos do séquito depois do passo 4, mais os veículos de Catch-a-Ride. Tier imaginário vale o câmbio do IMG (X 2000, Y 5000, Z 10000). Se só parte do séquito vai para a luta, só ela conta.')),
+      nota(tr('PvP Credit Value: o PvP Asset Value do séquito todo, mais os preços de lista dos Controls (Bindings, Lures e Other Controls), dos Talents, dos perks de Demiplanes & Dungeons e do primeiro nível de cada Defense.')),
+      p.semPreco.length ? h('p', { class: 'aviso aviso', style: 'margin-top:10px' }, tr('Sem preço de lista no banco do Interactive, contei o que a linha cobra: {lista}.', { lista: p.semPreco.join(', ') })) : null))
+
+    // ---- quem vai para a luta
+    const opcoesTier = []
+    for (let t = 0; t <= 13; t++) opcoesTier.push([String(t), `T${tierTxt(t)} (${fmt(W.precoTier(t))})`])
+    const linhas = p.membros.map((m) => {
+      const papel = m.tipo === 'contractor' ? tr('contractor') : m.tipo === 'so' ? tr('contractor 2 (SO)') : (m.ativo ? '' : infoPapel(m.motivo).nome)
+      const vai = h('input', { type: 'checkbox', checked: m.naForca, disabled: !m.conta, 'aria-label': tr('{nome} vai para a luta', { nome: m.nome }), onchange: e => mudarPvp((o) => { if (e.target.checked) delete o.fora[m.chave]; else o.fora[m.chave] = true }) })
+      const tierSel = lista(opcoesTier, m.tier, v => mudarPvp((o) => { const n = parseInt(v, 10); if (n === m.tier1a) delete o.tiers[m.chave]; else o.tiers[m.chave] = n }),
+        { 'aria-label': tr('Tier efetivo de {nome} no passo 4', { nome: m.nome }), disabled: !m.ativo, 'data-foco': `tier:${m.chave}` })
+      return h('tr', { class: m.conta ? '' : 'fora' },
+        h('td', null, vai),
+        h('td', null, h('b', null, m.nome), papel ? h('span', { class: 'nota', style: 'display:block;margin:0' }, papel) : null, m.mundo && m.tipo === 'membro' ? h('span', { class: 'nota', style: 'display:block;margin:0' }, m.mundo) : null),
+        h('td', { class: 'n' }, `T${tierTxt(m.tier1a)}`),
+        h('td', null, tierSel, m.mexido ? h('span', { class: 'nota', style: 'display:block;margin:2px 0 0' }, tr('mudado à mão')) : null),
+        h('td', { class: 'n' }, m.conta ? fmt(m.preco) : '—'))
+    })
+    const tabela = h('table', { class: 'tabela fixa pvp-tabela' },
+      h('thead', null, h('tr', null, h('th', null, tr('Vai')), h('th', null, tr('Quem')), h('th', { class: 'n' }, tr('Passo 1a')), h('th', null, tr('Tier efetivo (passo 4)')), h('th', { class: 'n' }, tr('Valor')))),
+      h('tbody', null, linhas))
+    const ridesBox = p.rides.length
+      ? h('div', null, h('h3', { style: 'margin:14px 0 4px' }, 'Catch-a-Ride'),
+        h('ul', { class: 'lista' }, p.rides.map(r => h('li', { style: r.conta ? '' : 'color:var(--suave)' }, `${r.titulo}: ${fmt(r.valor)}`, r.perk ? h('span', { class: 'nota' }, r.conta ? tr(' (perk de Catch-a-Ride, contado)') : tr(' (perk de Catch-a-Ride, fora)')) : null))),
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: op.ridePerks, onchange: e => mudarPvp((o) => { o.ridePerks = e.target.checked }) }), tr('Contar os perks de Catch-a-Ride (Crew, Extended Warranty…) junto dos veículos')))
+      : nota(tr('A build não tem veículos de Catch-a-Ride.'))
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('Quem vai para a luta')), h('small', null, tr('o PvP Asset Value conta só quem está marcado'))),
+      nota(tr('O tier começa no passo 1a (com Waifu Perk ou Power Swap), que é o que o texto da build diz. O passo 4 também conta cross-training, Talents, Template Stacking, equipamento e os efeitos da binding: se alguém sobe ou desce de tier por isso, troque aqui.')),
+      h('div', { class: 'rolar' }, tabela),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: op.contractor, onchange: e => mudarPvp((o) => { o.contractor = e.target.checked }) }), tr('Contar você (e o SO) no séquito: o glossário diz que o séquito é você e todos os seus subjects')),
+      ridesBox,
+      h('div', { class: 'total-linha' }, h('span', null, tr('PvP Asset Value da força')), h('b', null, fmt(p.ativoForca)), h('span', { class: 'nota', style: 'margin:0' }, tr('tier mais alto: T{tier}', { tier: tierTxt(p.tierMaxForca) })))))
+
+    // ---- o que entra no Credit Value
+    const grupo = (titulo, g, nada) => h('details', { class: 'pvp-grupo' },
+      h('summary', null, h('span', null, titulo), h('b', null, fmt(g.total))),
+      g.itens.length ? h('ul', { class: 'lista' }, g.itens.map(x => h('li', null, `${x.titulo}${x.copias > 1 ? ` x${x.copias}` : ''}: ${fmt(x.valor)}`, x.conhecido ? null : h('span', { class: 'nota' }, tr(' (preço da linha)'))))) : h('p', { class: 'vazio', style: 'margin:4px 0 0' }, nada))
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('De onde vem o PvP Credit Value'))),
+      h('div', { class: 'pvp-grupo fixo' }, h('span', null, tr('PvP Asset Value do séquito todo')), h('b', null, fmt(p.ativoTotal))),
+      grupo('Controls (Bindings, Lures, Other Controls)', p.controles, tr('Nenhum.')),
+      grupo('Talents', p.talents, tr('Nenhum.')),
+      grupo('Demiplanes & Dungeons', p.demiplanos, tr('Nenhum.')),
+      grupo(tr('Defenses (primeiro nível de cada)'), p.defesas, tr('Nenhuma.')),
+      h('div', { class: 'pvp-grupo fixo total' }, h('span', null, 'PvP Credit Value'), h('b', null, fmt(p.creditValue))),
+      nota(tr('Preço de lista: o preço do catálogo, sem descontos. O que veio de graça (brinde de heritage, DRX start) conta pelo preço de lista. Talent repetido conta uma vez, porque a cópia a mais volta como desconto; Template Stacking com alvos conta cada cópia.'))))
+
+    // ---- Invasão: Red Eye Orb
+    const iv = p.invasao
+    const faixa = f => `${fmt(f.min)} – ${fmt(f.max)}`
+    const opcoesAliados = [0, 1, 2, 3].map(n => [String(n), String(n)])
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('Invasão: Red Eye Orb')), statusOrb(iv.orb)),
+      nota(tr('Não tem aposta: o que você precisa é o orb (100 créditos), e perder uma invasão não custa créditos. Quem morre como fantasma volta para casa e fica uma semana (168 horas) se recuperando.')),
+      iv.skyblock && !iv.orb.tem ? h('p', { class: 'aviso erro' }, tr('Com o challenge Skyblock, o Red Eye Orb não pode ser comprado.')) : null,
+      iv.nahIdWin ? h('p', { class: 'aviso info' }, tr('Com "Nah, I\'d Win.", o seu mundo já é um alvo válido de PvP, como se você tivesse um Red Eye Orb.')) : null,
+      h('h3', { style: 'margin:12px 0 4px' }, tr('Você invade')),
+      h('dl', { class: 'lido' },
+        h('dt', null, tr('Sua força (Asset Value)')), h('dd', null, h('b', null, fmt(p.ativoForca))),
+        h('dt', null, tr('Alvos possíveis')), h('dd', null, tr('PvP Credit Value entre {faixa}', { faixa: faixa(iv.faixaAlvo) }), h('span', { class: 'nota', style: 'display:block;margin:0' }, tr('o maior dos dois não pode passar 25% do menor; o alvo também precisa ter um Red Eye Orb e ter visitado um mundo que você visitou')))),
+      h('div', { class: 'campos', style: 'margin-top:10px' },
+        campo(tr('Credit Value do alvo (vazio = igual à sua força)'), numeroPvp(op.invasao.alvo, v => mudarPvp((o) => { o.invasao.alvo = v }), { placeholder: fmt(p.ativoForca), 'data-foco': 'inv:alvo' })),
+        campo(tr('Aliados que o alvo chamar (White Eye Orb)'), lista(opcoesAliados, op.invasao.aliadosAlvo, v => mudarPvp((o) => { o.invasao.aliadosAlvo = parseInt(v, 10) }), { 'data-foco': 'inv:aliadosAlvo' }))),
+      iv.alvoNaFaixa ? null : h('p', { class: 'aviso aviso' }, tr('Esse alvo está fora da faixa de 25%: o sistema da Company não sorteia essa luta.')),
+      h('div', { class: 'total-linha' }, h('span', null, tr('Prêmio se você vencer')), h('b', null, cr(iv.premioInvasor)),
+        h('span', { class: 'nota', style: 'margin:0' }, iv.nAliadosAlvo ? tr('25% de {forca} + {n} aliado(s) de ~{aliado} + {alvo}', { forca: fmt(p.ativoForca), n: iv.nAliadosAlvo, aliado: fmt(iv.forcaAliadoAlvo), alvo: fmt(iv.alvo) }) : tr('25% de {forca} + {alvo}, para cima', { forca: fmt(p.ativoForca), alvo: fmt(iv.alvo) }))),
+      nota(tr('Você vence por regicídio (matar o contractor inimigo). As capturas que você fizer do séquito dele ficam com você se vencer.')),
+      h('h3', { style: 'margin:16px 0 4px' }, tr('Você defende')),
+      h('dl', { class: 'lido' },
+        h('dt', null, tr('Invasores possíveis')), h('dd', null, tr('força (Asset Value) entre {faixa}', { faixa: faixa(iv.faixaInvasor) }), h('span', { class: 'nota', style: 'display:block;margin:0' }, tr('25% em volta do seu PvP Credit Value ({c})', { c: fmt(p.creditValue) })))),
+      h('div', { class: 'campos', style: 'margin-top:10px' },
+        campo(tr('Força do invasor (vazio = igual ao seu Credit Value)'), numeroPvp(op.invasao.invasor, v => mudarPvp((o) => { o.invasao.invasor = v }), { placeholder: fmt(p.creditValue), 'data-foco': 'inv:invasor' })),
+        campo(tr('Aliados que você chamar (até 3)'), lista(opcoesAliados, op.invasao.aliados, v => mudarPvp((o) => { o.invasao.aliados = parseInt(v, 10) }), { 'data-foco': 'inv:aliados' }))),
+      h('div', { class: 'total-linha' }, h('span', null, tr('Sua parte se a defesa vencer')), h('b', null, cr(iv.parteDefesa)),
+        h('span', { class: 'nota', style: 'margin:0' }, iv.nAliados ? tr('prêmio de {pote} dividido por {n}', { pote: fmt(iv.poteDefesa), n: iv.nAliados + 1 }) : tr('25% de {inv} + {c}, para cima', { inv: fmt(iv.invasor), c: fmt(p.creditValue) }))),
+      nota(tr('Cada aliado chamado diminui a parte de todos os defensores. Sem o número de cada aliado, a conta usa uma força no meio do caminho ({f}). Quem defende e vence tem 7 dias (168 horas) para um contra-ataque, e o Red Eye Orb não pode ser devolvido enquanto o prazo corre.', { f: fmt(iv.forcaAliado) }))))
+
+    // ---- White Eye Orb
+    const br = p.branco
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('Ajudar na defesa: White Eye Orb')), statusOrb(br.orb)),
+      nota(tr('Atender ao chamado de quem está sendo invadido. A força que você manda tem de ficar entre 80% do maior e 125% do menor dos dois valores: o Credit Value do defensor e a força do invasor.')),
+      h('div', { class: 'campos', style: 'margin-top:10px' },
+        campo(tr('Credit Value do defensor'), numeroPvp(op.aliado.defensor, v => mudarPvp((o) => { o.aliado.defensor = v }), { placeholder: fmt(p.ativoForca), 'data-foco': 'br:def' })),
+        campo(tr('Força do invasor'), numeroPvp(op.aliado.invasor, v => mudarPvp((o) => { o.aliado.invasor = v }), { placeholder: fmt(p.ativoForca), 'data-foco': 'br:inv' }))),
+      h('div', { class: 'total-linha' }, h('span', null, tr('Força que pode ir')), h('b', null, br.faixaVazia ? tr('nenhuma') : faixa(br.faixa)),
+        linhaOk(br.cabe, tr('a sua ({a}) cabe', { a: fmt(p.ativoForca) }), tr('a sua ({a}) não cabe', { a: fmt(p.ativoForca) }))),
+      br.faixaVazia ? nota(tr('Os dois valores estão longe demais um do outro: nenhuma força cabe.')) : nota(tr('Para caber, marque ou desmarque quem vai em "Quem vai para a luta".'))))
+
+    // ---- Arranged PvP / Blue Eye Orb
+    const ar = p.arranjado
+    const habilidades = [['casual', tr('Casual (aposta 5%)')], ['average', tr('Average (aposta 10%)')], ['hardcore', tr('Hardcore (aposta 15%)')]]
+    const forcas = []
+    for (let f = 1; f <= 9; f++) forcas.push([String(f), `${f} (${W.FORCA_ARRANJADO_TXT[f]})`])
+    const opsLinhas = ar.oponentes.map((o, i) => h('tr', null,
+      h('td', null, String(i + 1)),
+      h('td', null, lista(forcas, o.forca, v => mudarPvp((x) => { x.arranjado.oponentes[i].forca = parseInt(v, 10) }), { 'aria-label': tr('Força do oponente {n}', { n: i + 1 }), 'data-foco': `arr:f${i}` })),
+      h('td', null, lista(habilidades, o.habilidade, v => mudarPvp((x) => { x.arranjado.oponentes[i].habilidade = v }), { 'aria-label': tr('Habilidade do oponente {n}', { n: i + 1 }), 'data-foco': `arr:h${i}` })),
+      h('td', { class: 'n' }, fmt(o.orcamento)),
+      h('td', { class: 'n' }, fmt(o.aposta)),
+      h('td', null, ar.oponentes.length > 1 ? botao('×', () => mudarPvp((x) => { x.arranjado.oponentes.splice(i, 1) }), 'leve', { 'aria-label': tr('Tirar o oponente {n}', { n: i + 1 }), title: tr('Tirar o oponente {n}', { n: i + 1 }) }) : null)))
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('Arranged PvP e Blue Eye Orb')), h('small', null, tr('as lutas com aposta'))),
+      nota(tr('Cada participante aposta uma parte do próprio PvP Credit Value, arredondada para o múltiplo de 5 mais perto, que sai da conta quando a luta começa. Você conta como Average: 10%. O Blue Eye Orb (15) chama um contractor que você já conheceu para um duelo com estas mesmas regras.')),
+      h('dl', { class: 'lido' },
+        h('dt', null, tr('Sua aposta')), h('dd', null, h('b', null, cr(ar.minhaAposta)), ' ', h('span', { class: 'nota' }, tr('10% de {c}', { c: fmt(p.creditValue) }))),
+        h('dt', null, tr('Saldo depois de apostar')), h('dd', null, h('b', { style: ar.saldoDepois < 0 ? 'color:var(--ruim)' : '' }, fmt(ar.saldoDepois))),
+        h('dt', null, tr('Entrar no Arranged PvP')), h('dd', null, linhaOk(ar.podeEntrar, tr('dá'), p.divida ? tr('em dívida não entra') : tr('o saldo não cobre a aposta'))),
+        h('dt', null, 'Blue Eye Orb'), h('dd', null, statusOrb(ar.azul), ' ', linhaOk(ar.podeDuelo, tr('o saldo cobre orb + aposta'), tr('o saldo não cobre orb + aposta')))),
+      h('h3', { style: 'margin:14px 0 4px' }, tr('Oponentes')),
+      h('div', { class: 'rolar' }, h('table', { class: 'tabela fixa' },
+        h('thead', null, h('tr', null, h('th', null, '#'), h('th', null, tr('Força')), h('th', null, tr('Habilidade')), h('th', { class: 'n' }, tr('Orçamento')), h('th', { class: 'n' }, tr('Aposta')), h('th', null, ''))),
+        h('tbody', null, opsLinhas))),
+      ar.oponentes.length < 11 ? h('div', { class: 'botoes' }, botao(tr('+ oponente'), () => mudarPvp((x) => { x.arranjado.oponentes.push({ forca: 5, habilidade: 'average' }) }), 'sec')) : nota(tr('Até 12 contractors numa luta, contando você.')),
+      h('div', { class: 'total-linha' }, h('span', null, tr('Prêmio se você vencer')), h('b', null, cr(ar.premio)),
+        h('span', { class: 'nota', style: 'margin:0' }, tr('apostas {pote} + 50%, para baixo · lucro {lucro}', { pote: fmt(ar.pote), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` }))),
+      nota(tr('Força do oponente: o multiplicador sobre o seu PvP Credit Value dá o orçamento dele, no múltiplo de 5 mais perto. Casual, Average e Hardcore são os Negotiable, Rival e Enemy do Gauntlet. Quem perde só sai da arena e perde o que apostou; tudo o que aconteceu com o séquito é desfeito. Quem vence pode ficar com um clone de um membro do séquito do oponente que derrotou.'))))
+
+    // ---- Gauntlet
+    const g = p.gauntlet
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, 'Gauntlet'), h('small', null, tr('PvP contínuo'))),
+      nota(tr('O orçamento de cada oponente é o seu PvP Credit Value (no chargen ou no fim da rodada anterior) mais 1% por contractor eliminado, sem juros sobre juros, arredondado para cima: P × (1 + E/100).')),
+      h('div', { class: 'campos', style: 'margin-top:10px' },
+        campo(tr('Contractors eliminados (E)'), numeroPvp(op.gauntlet.eliminados, v => mudarPvp((o) => { o.gauntlet.eliminados = v || 0 }), { 'data-foco': 'g:e' })),
+        campo(tr('Credit Value do resto do time (co-op fora da Arena)'), numeroPvp(op.gauntlet.time, v => mudarPvp((o) => { o.gauntlet.time = v || 0 }), { 'data-foco': 'g:t' }))),
+      h('div', { class: 'total-linha' }, h('span', null, tr('Orçamento do próximo oponente')), h('b', null, cr(g.orcamento)), h('span', { class: 'nota', style: 'margin:0' }, `P = ${fmt(g.P)}`)),
+      h('p', { class: 'nota' }, tr('Depois: {lista}', { lista: g.proximos.slice(1).map(x => `E=${x.eliminados}: ${fmt(x.orcamento)}`).join(' · ') }))))
+
+    // ---- Tournament
+    const tn = p.torneio
+    const linhasT = tn.classes.map(c => h('tr', { class: c.pode ? '' : 'fora' },
+      h('td', null, h('b', null, `${c.n}. ${c.nome}`), h('span', { class: 'nota', style: 'display:block;margin:0' }, c.tierMax >= 99 ? tr('qualquer tier') : `T1–T${c.tierMax}`, ` · ${tr('até {v}', { v: fmt(c.ativoMax) })}`)),
+      h('td', null, c.pode ? h('span', { class: 'selo bom' }, tr('pode')) : h('span', { class: 'selo ruim' }, !c.okTier ? tr('tier alto demais') : tr('força cara demais'))),
+      ...c.premios.map(pr => h('td', { class: 'n' }, fmt(pr.valor)))))
+    box.append(h('div', { class: 'card' },
+      h('div', { class: 'card-topo' }, h('h2', null, tr('Tournament: Black Eye Orb')), statusOrb(tn.orb)),
+      nota(tr('10 rodadas, eliminação simples. Cada classe tem um teto de tier e de PvP Asset Value do time; o time pode ser só uma parte do séquito. Vencer a rodada 2 rende classe × 50 créditos; a cada duas rodadas você pode sair com o prêmio ou seguir e dobrar.')),
+      h('p', { class: 'nota' }, tr('Sua força: {a} de Asset Value, tier mais alto T{t}.', { a: fmt(p.ativoForca), t: tierTxt(tn.tierMax) })),
+      h('div', { class: 'rolar' }, h('table', { class: 'tabela fixa' },
+        h('thead', null, h('tr', null, h('th', null, tr('Classe')), h('th', null, ''), ...[2, 4, 6, 8, 10].map(r => h('th', { class: 'n' }, tr('R{r}', { r }))))),
+        h('tbody', null, linhasT))),
+      h('div', { class: 'campos', style: 'margin-top:10px' },
+        campo(tr('Ajuste das condições no prêmio (%)'), h('input', { type: 'number', step: '5', value: String(op.torneio.bonus), 'data-foco': 't:b', onchange: e => mudarPvp((o) => { o.torneio.bonus = Math.round(parseFloat(e.target.value) || 0) }) }))),
+      nota(tr('As condições do torneio mudam o prêmio (What\'s Mine Is Mine e Time Is On My Side: −20% cada). Ponha a soma aqui.'))))
+
+    if (focado) {
+      const alvo = box.querySelector(`[data-foco="${CSS.escape(focado)}"]`)
+      if (alvo) alvo.focus()
     }
   }
 

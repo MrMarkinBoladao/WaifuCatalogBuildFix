@@ -20,6 +20,7 @@ Também dá para usar sem internet: baixe `WaifuCatalogBuildFix.html` e abra com
 - **Saves:** as builds salvas, com todas as versões, e os arquivos .txt para baixar e carregar.
 - **Pessoas e tags:** os contractors e as companions, cada um com o personagem de onde vêm as tags, o arquétipo e as tags de Defense. Em cada contractor, o campo **Nome do contractor** põe o nome que você escolher no lugar de "You" e "Your SO" em todo o texto (`Alex as Natsu Dragneel (Possess) of T7`). Vazio, fica "You" e "Your SO".
 - **Retinue:** o séquito, com como cada membro entrou e a situação dele.
+- **PvP:** o PvP Asset Value e o PvP Credit Value, pelas regras do Interactive (tiers efetivos depois do passo 4, Catch-a-Ride, Controls, Talents, Demiplanes & Dungeons e o primeiro nível de cada Defense). Você marca quem vai para a luta e pode trocar o tier do passo 4 de qualquer um. Para cada modo, mostra o que precisa e o que dá para ganhar: a faixa de 25% e o prêmio da invasão com o Red Eye Orb, a faixa do White Eye Orb, a aposta do Arranged PvP e do Blue Eye Orb (10% do Credit Value) contra o seu saldo, o orçamento dos oponentes e o pote, o orçamento do Gauntlet e as classes do Tournament em que a sua força cabe.
 - **Heritage:** de quem é cada perk e quanto cada um paga. Na Couple's Account, dá para escolher "Os dois".
 - **Challenges:** o bônus em créditos de cada challenge, e a lista para pôr outros na build.
 - **Missões:** as recompensas de Mission Rewards, para editar, tirar ou pôr missões.
