@@ -1146,6 +1146,7 @@
   const cr = n => `${fmt(n)} cr`
   function linhaOk(ok, sim, nao) { return h('span', { class: `selo ${ok ? 'bom' : 'ruim'}` }, ok ? sim : nao) }
   function statusOrb(o) {
+    if (o.doDevil) return h('span', { class: 'selo bom', title: tr('O patrono The Devil dá os Red e White Eye Orbs de graça.') }, tr('de graça (The Devil)'))
     if (o.tem) return h('span', { class: 'selo bom' }, tr('na build'))
     if (o.bloqueado) return h('span', { class: 'selo ruim' }, tr('o Skyblock não deixa comprar'))
     return h('span', { class: `selo ${o.podePagar ? 'meu' : 'ruim'}` }, o.podePagar ? tr('falta comprar: {preco}', { preco: cr(o.preco) }) : tr('falta comprar: {preco} (o saldo não dá)', { preco: cr(o.preco) }))
@@ -1172,6 +1173,7 @@
         numero(tr('Saldo livre'), p.saldo, p.divida ? tr('em dívida: não compra nada nem entra em Arranged PvP') : tr('o saldo final da build'))),
       nota(tr('PvP Asset Value: a soma dos preços de lista dos tiers efetivos do séquito depois do passo 4, mais os veículos de Catch-a-Ride. Tier imaginário vale o câmbio do IMG (X 2000, Y 5000, Z 10000). Se só parte do séquito vai para a luta, só ela conta.')),
       nota(tr('PvP Credit Value: o PvP Asset Value do séquito todo, mais os preços de lista dos Controls (Bindings, Lures e Other Controls), dos Talents, dos perks de Demiplanes & Dungeons e do primeiro nível de cada Defense.')),
+      p.devil ? h('p', { class: 'aviso info', style: 'margin-top:10px' }, tr('Patrono The Devil: Red e White Eye Orbs de graça e +10% nos créditos que você ganhar no Arranged e no Gauntlet PvP. As contas abaixo já incluem isso.')) : null,
       p.semPreco.length ? h('p', { class: 'aviso aviso', style: 'margin-top:10px' }, tr('Sem preço de lista no banco do Interactive, contei o que a linha cobra: {lista}.', { lista: p.semPreco.join(', ') })) : null))
 
     // ---- quem vai para a luta
@@ -1227,6 +1229,7 @@
       h('div', { class: 'card-topo' }, h('h2', null, tr('Invasão: Red Eye Orb')), statusOrb(iv.orb)),
       nota(tr('Não tem aposta: o que você precisa é o orb (100 créditos), e perder uma invasão não custa créditos. Quem morre como fantasma volta para casa e fica uma semana (168 horas) se recuperando.')),
       iv.skyblock && !iv.orb.tem ? h('p', { class: 'aviso erro' }, tr('Com o challenge Skyblock, o Red Eye Orb não pode ser comprado.')) : null,
+      p.devil ? h('p', { class: 'aviso info' }, tr('The Devil: quando você entra numa invasão, escolhe apoiar o invasor, o defensor ou ninguém, com uma aura escura que esconde o seu lado.')) : null,
       iv.nahIdWin ? h('p', { class: 'aviso info' }, tr('Com "Nah, I\'d Win.", o seu mundo já é um alvo válido de PvP, como se você tivesse um Red Eye Orb.')) : null,
       h('h3', { style: 'margin:12px 0 4px' }, tr('Você invade')),
       h('dl', { class: 'lido' },
@@ -1259,6 +1262,7 @@
         campo(tr('Força do invasor'), numeroPvp(op.aliado.invasor, v => mudarPvp((o) => { o.aliado.invasor = v }), { placeholder: fmt(p.ativoForca), 'data-foco': 'br:inv' }))),
       h('div', { class: 'total-linha' }, h('span', null, tr('Força que pode ir')), h('b', null, br.faixaVazia ? tr('nenhuma') : faixa(br.faixa)),
         linhaOk(br.cabe, tr('a sua ({a}) cabe', { a: fmt(p.ativoForca) }), tr('a sua ({a}) não cabe', { a: fmt(p.ativoForca) }))),
+      p.devil ? h('p', { class: 'aviso info', style: 'margin-top:10px' }, tr('The Devil: você não pode recusar os chamados do White Eye Orb.')) : null,
       br.faixaVazia ? nota(tr('Os dois valores estão longe demais um do outro: nenhuma força cabe.')) : nota(tr('Para caber, marque ou desmarque quem vai em "Quem vai para a luta".'))))
 
     // ---- Arranged PvP / Blue Eye Orb
@@ -1287,7 +1291,9 @@
         h('tbody', null, opsLinhas))),
       ar.oponentes.length < 11 ? h('div', { class: 'botoes' }, botao(tr('+ oponente'), () => mudarPvp((x) => { x.arranjado.oponentes.push({ forca: 5, habilidade: 'average' }) }), 'sec')) : nota(tr('Até 12 contractors numa luta, contando você.')),
       h('div', { class: 'total-linha' }, h('span', null, tr('Prêmio se você vencer')), h('b', null, cr(ar.premio)),
-        h('span', { class: 'nota', style: 'margin:0' }, tr('apostas {pote} + 50%, para baixo · lucro {lucro}', { pote: fmt(ar.pote), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` }))),
+        h('span', { class: 'nota', style: 'margin:0' }, ar.bonusDevil
+          ? tr('apostas {pote} + 50%, para baixo = {base}, + {bonus} do The Devil (10%) · lucro {lucro}', { pote: fmt(ar.pote), base: fmt(ar.premioBase), bonus: fmt(ar.bonusDevil), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` })
+          : tr('apostas {pote} + 50%, para baixo · lucro {lucro}', { pote: fmt(ar.pote), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` }))),
       nota(tr('Força do oponente: o multiplicador sobre o seu PvP Credit Value dá o orçamento dele, no múltiplo de 5 mais perto. Casual, Average e Hardcore são os Negotiable, Rival e Enemy do Gauntlet. Quem perde só sai da arena e perde o que apostou; tudo o que aconteceu com o séquito é desfeito. Quem vence pode ficar com um clone de um membro do séquito do oponente que derrotou.'))))
 
     // ---- Gauntlet
@@ -1299,7 +1305,10 @@
         campo(tr('Contractors eliminados (E)'), numeroPvp(op.gauntlet.eliminados, v => mudarPvp((o) => { o.gauntlet.eliminados = v || 0 }), { 'data-foco': 'g:e' })),
         campo(tr('Credit Value do resto do time (co-op fora da Arena)'), numeroPvp(op.gauntlet.time, v => mudarPvp((o) => { o.gauntlet.time = v || 0 }), { 'data-foco': 'g:t' }))),
       h('div', { class: 'total-linha' }, h('span', null, tr('Orçamento do próximo oponente')), h('b', null, cr(g.orcamento)), h('span', { class: 'nota', style: 'margin:0' }, `P = ${fmt(g.P)}`)),
-      h('p', { class: 'nota' }, tr('Depois: {lista}', { lista: g.proximos.slice(1).map(x => `E=${x.eliminados}: ${fmt(x.orcamento)}`).join(' · ') }))))
+      h('p', { class: 'nota' }, tr('Depois: {lista}', { lista: g.proximos.slice(1).map(x => `E=${x.eliminados}: ${fmt(x.orcamento)}`).join(' · ') })),
+      g.premioSobrev != null ? h('div', { class: 'total-linha' }, h('span', null, tr('Prêmio por sobreviver (One In Ten)')), h('b', null, cr(g.premioSobrev + g.bonusDevil)),
+        g.bonusDevil ? h('span', { class: 'nota', style: 'margin:0' }, tr('{base} + {bonus} do The Devil (10%)', { base: fmt(g.premioSobrev), bonus: fmt(g.bonusDevil) })) : null) : null,
+      p.devil ? nota(tr('The Devil: +10% em todo crédito que o Gauntlet te der.')) : null))
 
     // ---- Tournament
     const tn = p.torneio

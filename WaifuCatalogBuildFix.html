@@ -1544,6 +1544,15 @@ window.WC_TRADUCAO_EN = {
   "Ajuste das condições no prêmio (%)": "Conditions' reward adjustment (%)",
   "As condições do torneio mudam o prêmio (What's Mine Is Mine e Time Is On My Side: −20% cada). Ponha a soma aqui.": "Tournament conditions change the reward (What's Mine Is Mine and Time Is On My Side: −20% each). Enter the total here.",
   "PvP": "PvP",
+  "O patrono The Devil dá os Red e White Eye Orbs de graça.": "The Devil patron gives the Red and White Eye Orbs for free.",
+  "de graça (The Devil)": "free (The Devil)",
+  "Patrono The Devil: Red e White Eye Orbs de graça e +10% nos créditos que você ganhar no Arranged e no Gauntlet PvP. As contas abaixo já incluem isso.": "The Devil patron: free Red and White Eye Orbs and +10% to the credits you earn in Arranged and Gauntlet PvP. The numbers below already include it.",
+  "The Devil: quando você entra numa invasão, escolhe apoiar o invasor, o defensor ou ninguém, com uma aura escura que esconde o seu lado.": "The Devil: when you join an invasion, you choose to support the invader, the defender, or neither, with an inky aura that hides your allegiance.",
+  "The Devil: você não pode recusar os chamados do White Eye Orb.": "The Devil: you can't turn down White Eye Orb calls.",
+  "apostas {pote} + 50%, para baixo = {base}, + {bonus} do The Devil (10%) · lucro {lucro}": "wagers {pote} + 50%, rounded down = {base}, + {bonus} from The Devil (10%) · profit {lucro}",
+  "Prêmio por sobreviver (One In Ten)": "Survival prize (One In Ten)",
+  "{base} + {bonus} do The Devil (10%)": "{base} + {bonus} from The Devil (10%)",
+  "The Devil: +10% em todo crédito que o Gauntlet te der.": "The Devil: +10% on every credit the Gauntlet gives you.",
 }
 </script>
 <script>
@@ -3961,6 +3970,8 @@ window.WC_TRADUCAO_EN = {
   //    eliminados).
   //  - Tournament (Black Eye Orb, 20): cinco classes de peso, cada uma com teto de tier e de PvP Asset Value do time.
   //    Vencer a rodada 2 rende classe × 50 créditos, e o prêmio dobra a cada duas rodadas.
+  //  - Patrono The Devil: Red e White Eye Orbs de graça; numa invasão, escolhe de que lado fica (ou nenhum); não pode
+  //    recusar os chamados do White Eye Orb; e recebe 10% a mais nos créditos que ganharia no Arranged e no Gauntlet PvP.
 
   const ORBS_PVP = {
     'Red Eye Orb': { custo: 100 }, 'White Eye Orb': { custo: 75 }, 'Blue Eye Orb': { custo: 15 },
@@ -4108,8 +4119,26 @@ window.WC_TRADUCAO_EN = {
     // ---- saldo e orbs
     const saldo = res ? res.saldoFinal : 0
     const divida = saldo < 0
-    const orbsNaBuild = itens.filter(L => L.secao === 'Orbs').map(L => L.titulo)
-    const temOrb = nome => orbsNaBuild.some(t => normalizar(t) === normalizar(nome))
+    // Títulos de um bloco do texto. Linhas sem [saldo] ("The Devil free", que o Interactive escreve no Patron)
+    // não viram item no leitor, mas contam aqui.
+    const titulosDoBloco = (nome) => {
+      const r = []
+      let dentro = false
+      for (const L of md.linhas) {
+        if (L.tipo === 'cabecalho') { dentro = L.nome === nome; continue }
+        if (L.tipo === 'vazio') { dentro = false; continue }
+        if (!dentro) continue
+        if (L.tipo === 'item') r.push(String(L.titulo || '').trim())
+        else if (L.tipo === 'texto') r.push(separarCabecaItem(String(L.raw).trim().replace(/\s+(?:free|[-+]?\d+(?:\.\d+)?)$/i, '')).titulo)
+      }
+      return r.filter(Boolean)
+    }
+    const orbsNaBuild = titulosDoBloco('Orbs')
+    // Patrono: "The Devil" dá os Red e White Eye Orbs de graça e +10% nos créditos do Arranged e do Gauntlet PvP.
+    const patronos = titulosDoBloco('Patron')
+    const devil = patronos.some(t => /^the devil$/i.test(t))
+    const DOS_DEVIL = ['Red Eye Orb', 'White Eye Orb']
+    const temOrb = nome => orbsNaBuild.some(t => normalizar(t) === normalizar(nome)) || (devil && DOS_DEVIL.includes(nome))
     const skyblock = (md.challenges || []).some(L => /^skyblock$/i.test(String(L.titulo || '').trim()))
     const nahIdWin = (md.opcoesInt || []).some(L => /^Nah, I.d Win\.?$/i.test(String(L.nome || '').trim()))
       || itens.some(L => /^Nah, I.d Win\.?$/i.test(String(L.titulo || '').trim()))
@@ -4117,7 +4146,8 @@ window.WC_TRADUCAO_EN = {
       const tem = temOrb(nome)
       const custo = tem ? 0 : ORBS_PVP[nome].custo
       const bloqueado = nome === 'Red Eye Orb' && skyblock && !tem
-      return { nome, tem, preco: ORBS_PVP[nome].custo, custo, bloqueado, podePagar: !bloqueado && !divida && saldo >= custo }
+      const doDevil = devil && DOS_DEVIL.includes(nome) && !orbsNaBuild.some(t => normalizar(t) === normalizar(nome))
+      return { nome, tem, doDevil, preco: ORBS_PVP[nome].custo, custo, bloqueado, podePagar: !bloqueado && !divida && saldo >= custo }
     }
 
     // ---- Invasão (Red Eye Orb)
@@ -4166,9 +4196,13 @@ window.WC_TRADUCAO_EN = {
       return { ...o, mult: FORCA_ARRANJADO_TXT[o.forca], orcamento, aposta }
     })
     const pote = minhaAposta + oponentes.reduce((a, o) => a + o.aposta, 0)
-    const premioArr = pote + Math.floor(pote * 0.5)
+    const premioBase = pote + Math.floor(pote * 0.5)
+    // The Devil: +10% sobre os créditos que você receberia. Meio crédito arredonda para cima, como no resto da página.
+    const extraDevil = n => (devil ? arred(n * 0.1) : 0)
+    const bonusArr = extraDevil(premioBase)
+    const premioArr = premioBase + bonusArr
     const arranjado = {
-      minhaAposta, oponentes, pote, premio: premioArr, lucro: premioArr - minhaAposta,
+      minhaAposta, oponentes, pote, premioBase, bonusDevil: bonusArr, premio: premioArr, lucro: premioArr - minhaAposta,
       podeEntrar: !divida && saldo >= minhaAposta, saldoDepois: saldo - minhaAposta,
       azul: orb('Blue Eye Orb'),
       podeDuelo: !divida && saldo >= minhaAposta + (temOrb('Blue Eye Orb') ? 0 : ORBS_PVP['Blue Eye Orb'].custo),
@@ -4179,7 +4213,13 @@ window.WC_TRADUCAO_EN = {
     const E = op.gauntlet.eliminados
     const proximos = []
     for (let e = E; e < E + 5; e++) proximos.push({ eliminados: e, orcamento: Math.ceil(P * (1 + e / 100) - 1e-9) })
-    const gauntlet = { P, eliminados: E, time: op.gauntlet.time, orcamento: proximos[0].orcamento, proximos }
+    // Prêmio em créditos por sobreviver ao Gauntlet: só o One In Ten paga em créditos (200); Fight For Your Right paga um IMG.
+    const opcaoNaBuild = nome => (md.opcoesInt || []).some(L => normalizar(L.nome) === normalizar(nome)) || itens.some(L => normalizar(L.titulo) === normalizar(nome))
+    const premioSobrev = opcaoNaBuild('One In Ten') ? 200 : null
+    const gauntlet = {
+      P, eliminados: E, time: op.gauntlet.time, orcamento: proximos[0].orcamento, proximos,
+      premioSobrev, bonusDevil: premioSobrev != null ? extraDevil(premioSobrev) : 0,
+    }
 
     // ---- Tournament (Black Eye Orb)
     const fator = 1 + op.torneio.bonus / 100
@@ -4195,7 +4235,7 @@ window.WC_TRADUCAO_EN = {
       op, membros, rides, controles, talents, demiplanos, defesas,
       valorRides, ativoTotal, ativoForca, creditValue, tierMaxForca,
       forcaLimitada: membros.some(m => m.conta && !m.naForca),
-      saldo, divida, orbsNaBuild,
+      saldo, divida, orbsNaBuild, devil,
       invasao, branco, arranjado, gauntlet, torneio,
       semPreco: [...controles.itens, ...talents.itens, ...demiplanos.itens, ...defesas.itens, ...rides].filter(x => !x.conhecido).map(x => x.titulo),
     }
@@ -5623,6 +5663,7 @@ Usagi SO purchase refund [+500]
   const cr = n => `${fmt(n)} cr`
   function linhaOk(ok, sim, nao) { return h('span', { class: `selo ${ok ? 'bom' : 'ruim'}` }, ok ? sim : nao) }
   function statusOrb(o) {
+    if (o.doDevil) return h('span', { class: 'selo bom', title: tr('O patrono The Devil dá os Red e White Eye Orbs de graça.') }, tr('de graça (The Devil)'))
     if (o.tem) return h('span', { class: 'selo bom' }, tr('na build'))
     if (o.bloqueado) return h('span', { class: 'selo ruim' }, tr('o Skyblock não deixa comprar'))
     return h('span', { class: `selo ${o.podePagar ? 'meu' : 'ruim'}` }, o.podePagar ? tr('falta comprar: {preco}', { preco: cr(o.preco) }) : tr('falta comprar: {preco} (o saldo não dá)', { preco: cr(o.preco) }))
@@ -5649,6 +5690,7 @@ Usagi SO purchase refund [+500]
         numero(tr('Saldo livre'), p.saldo, p.divida ? tr('em dívida: não compra nada nem entra em Arranged PvP') : tr('o saldo final da build'))),
       nota(tr('PvP Asset Value: a soma dos preços de lista dos tiers efetivos do séquito depois do passo 4, mais os veículos de Catch-a-Ride. Tier imaginário vale o câmbio do IMG (X 2000, Y 5000, Z 10000). Se só parte do séquito vai para a luta, só ela conta.')),
       nota(tr('PvP Credit Value: o PvP Asset Value do séquito todo, mais os preços de lista dos Controls (Bindings, Lures e Other Controls), dos Talents, dos perks de Demiplanes & Dungeons e do primeiro nível de cada Defense.')),
+      p.devil ? h('p', { class: 'aviso info', style: 'margin-top:10px' }, tr('Patrono The Devil: Red e White Eye Orbs de graça e +10% nos créditos que você ganhar no Arranged e no Gauntlet PvP. As contas abaixo já incluem isso.')) : null,
       p.semPreco.length ? h('p', { class: 'aviso aviso', style: 'margin-top:10px' }, tr('Sem preço de lista no banco do Interactive, contei o que a linha cobra: {lista}.', { lista: p.semPreco.join(', ') })) : null))
 
     // ---- quem vai para a luta
@@ -5704,6 +5746,7 @@ Usagi SO purchase refund [+500]
       h('div', { class: 'card-topo' }, h('h2', null, tr('Invasão: Red Eye Orb')), statusOrb(iv.orb)),
       nota(tr('Não tem aposta: o que você precisa é o orb (100 créditos), e perder uma invasão não custa créditos. Quem morre como fantasma volta para casa e fica uma semana (168 horas) se recuperando.')),
       iv.skyblock && !iv.orb.tem ? h('p', { class: 'aviso erro' }, tr('Com o challenge Skyblock, o Red Eye Orb não pode ser comprado.')) : null,
+      p.devil ? h('p', { class: 'aviso info' }, tr('The Devil: quando você entra numa invasão, escolhe apoiar o invasor, o defensor ou ninguém, com uma aura escura que esconde o seu lado.')) : null,
       iv.nahIdWin ? h('p', { class: 'aviso info' }, tr('Com "Nah, I\'d Win.", o seu mundo já é um alvo válido de PvP, como se você tivesse um Red Eye Orb.')) : null,
       h('h3', { style: 'margin:12px 0 4px' }, tr('Você invade')),
       h('dl', { class: 'lido' },
@@ -5736,6 +5779,7 @@ Usagi SO purchase refund [+500]
         campo(tr('Força do invasor'), numeroPvp(op.aliado.invasor, v => mudarPvp((o) => { o.aliado.invasor = v }), { placeholder: fmt(p.ativoForca), 'data-foco': 'br:inv' }))),
       h('div', { class: 'total-linha' }, h('span', null, tr('Força que pode ir')), h('b', null, br.faixaVazia ? tr('nenhuma') : faixa(br.faixa)),
         linhaOk(br.cabe, tr('a sua ({a}) cabe', { a: fmt(p.ativoForca) }), tr('a sua ({a}) não cabe', { a: fmt(p.ativoForca) }))),
+      p.devil ? h('p', { class: 'aviso info', style: 'margin-top:10px' }, tr('The Devil: você não pode recusar os chamados do White Eye Orb.')) : null,
       br.faixaVazia ? nota(tr('Os dois valores estão longe demais um do outro: nenhuma força cabe.')) : nota(tr('Para caber, marque ou desmarque quem vai em "Quem vai para a luta".'))))
 
     // ---- Arranged PvP / Blue Eye Orb
@@ -5764,7 +5808,9 @@ Usagi SO purchase refund [+500]
         h('tbody', null, opsLinhas))),
       ar.oponentes.length < 11 ? h('div', { class: 'botoes' }, botao(tr('+ oponente'), () => mudarPvp((x) => { x.arranjado.oponentes.push({ forca: 5, habilidade: 'average' }) }), 'sec')) : nota(tr('Até 12 contractors numa luta, contando você.')),
       h('div', { class: 'total-linha' }, h('span', null, tr('Prêmio se você vencer')), h('b', null, cr(ar.premio)),
-        h('span', { class: 'nota', style: 'margin:0' }, tr('apostas {pote} + 50%, para baixo · lucro {lucro}', { pote: fmt(ar.pote), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` }))),
+        h('span', { class: 'nota', style: 'margin:0' }, ar.bonusDevil
+          ? tr('apostas {pote} + 50%, para baixo = {base}, + {bonus} do The Devil (10%) · lucro {lucro}', { pote: fmt(ar.pote), base: fmt(ar.premioBase), bonus: fmt(ar.bonusDevil), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` })
+          : tr('apostas {pote} + 50%, para baixo · lucro {lucro}', { pote: fmt(ar.pote), lucro: `${ar.lucro >= 0 ? '+' : ''}${fmt(ar.lucro)}` }))),
       nota(tr('Força do oponente: o multiplicador sobre o seu PvP Credit Value dá o orçamento dele, no múltiplo de 5 mais perto. Casual, Average e Hardcore são os Negotiable, Rival e Enemy do Gauntlet. Quem perde só sai da arena e perde o que apostou; tudo o que aconteceu com o séquito é desfeito. Quem vence pode ficar com um clone de um membro do séquito do oponente que derrotou.'))))
 
     // ---- Gauntlet
@@ -5776,7 +5822,10 @@ Usagi SO purchase refund [+500]
         campo(tr('Contractors eliminados (E)'), numeroPvp(op.gauntlet.eliminados, v => mudarPvp((o) => { o.gauntlet.eliminados = v || 0 }), { 'data-foco': 'g:e' })),
         campo(tr('Credit Value do resto do time (co-op fora da Arena)'), numeroPvp(op.gauntlet.time, v => mudarPvp((o) => { o.gauntlet.time = v || 0 }), { 'data-foco': 'g:t' }))),
       h('div', { class: 'total-linha' }, h('span', null, tr('Orçamento do próximo oponente')), h('b', null, cr(g.orcamento)), h('span', { class: 'nota', style: 'margin:0' }, `P = ${fmt(g.P)}`)),
-      h('p', { class: 'nota' }, tr('Depois: {lista}', { lista: g.proximos.slice(1).map(x => `E=${x.eliminados}: ${fmt(x.orcamento)}`).join(' · ') }))))
+      h('p', { class: 'nota' }, tr('Depois: {lista}', { lista: g.proximos.slice(1).map(x => `E=${x.eliminados}: ${fmt(x.orcamento)}`).join(' · ') })),
+      g.premioSobrev != null ? h('div', { class: 'total-linha' }, h('span', null, tr('Prêmio por sobreviver (One In Ten)')), h('b', null, cr(g.premioSobrev + g.bonusDevil)),
+        g.bonusDevil ? h('span', { class: 'nota', style: 'margin:0' }, tr('{base} + {bonus} do The Devil (10%)', { base: fmt(g.premioSobrev), bonus: fmt(g.bonusDevil) })) : null) : null,
+      p.devil ? nota(tr('The Devil: +10% em todo crédito que o Gauntlet te der.')) : null))
 
     // ---- Tournament
     const tn = p.torneio

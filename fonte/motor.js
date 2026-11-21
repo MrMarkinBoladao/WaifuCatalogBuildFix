@@ -2412,6 +2412,8 @@
   //    eliminados).
   //  - Tournament (Black Eye Orb, 20): cinco classes de peso, cada uma com teto de tier e de PvP Asset Value do time.
   //    Vencer a rodada 2 rende classe × 50 créditos, e o prêmio dobra a cada duas rodadas.
+  //  - Patrono The Devil: Red e White Eye Orbs de graça; numa invasão, escolhe de que lado fica (ou nenhum); não pode
+  //    recusar os chamados do White Eye Orb; e recebe 10% a mais nos créditos que ganharia no Arranged e no Gauntlet PvP.
 
   const ORBS_PVP = {
     'Red Eye Orb': { custo: 100 }, 'White Eye Orb': { custo: 75 }, 'Blue Eye Orb': { custo: 15 },
@@ -2559,8 +2561,26 @@
     // ---- saldo e orbs
     const saldo = res ? res.saldoFinal : 0
     const divida = saldo < 0
-    const orbsNaBuild = itens.filter(L => L.secao === 'Orbs').map(L => L.titulo)
-    const temOrb = nome => orbsNaBuild.some(t => normalizar(t) === normalizar(nome))
+    // Títulos de um bloco do texto. Linhas sem [saldo] ("The Devil free", que o Interactive escreve no Patron)
+    // não viram item no leitor, mas contam aqui.
+    const titulosDoBloco = (nome) => {
+      const r = []
+      let dentro = false
+      for (const L of md.linhas) {
+        if (L.tipo === 'cabecalho') { dentro = L.nome === nome; continue }
+        if (L.tipo === 'vazio') { dentro = false; continue }
+        if (!dentro) continue
+        if (L.tipo === 'item') r.push(String(L.titulo || '').trim())
+        else if (L.tipo === 'texto') r.push(separarCabecaItem(String(L.raw).trim().replace(/\s+(?:free|[-+]?\d+(?:\.\d+)?)$/i, '')).titulo)
+      }
+      return r.filter(Boolean)
+    }
+    const orbsNaBuild = titulosDoBloco('Orbs')
+    // Patrono: "The Devil" dá os Red e White Eye Orbs de graça e +10% nos créditos do Arranged e do Gauntlet PvP.
+    const patronos = titulosDoBloco('Patron')
+    const devil = patronos.some(t => /^the devil$/i.test(t))
+    const DOS_DEVIL = ['Red Eye Orb', 'White Eye Orb']
+    const temOrb = nome => orbsNaBuild.some(t => normalizar(t) === normalizar(nome)) || (devil && DOS_DEVIL.includes(nome))
     const skyblock = (md.challenges || []).some(L => /^skyblock$/i.test(String(L.titulo || '').trim()))
     const nahIdWin = (md.opcoesInt || []).some(L => /^Nah, I.d Win\.?$/i.test(String(L.nome || '').trim()))
       || itens.some(L => /^Nah, I.d Win\.?$/i.test(String(L.titulo || '').trim()))
@@ -2568,7 +2588,8 @@
       const tem = temOrb(nome)
       const custo = tem ? 0 : ORBS_PVP[nome].custo
       const bloqueado = nome === 'Red Eye Orb' && skyblock && !tem
-      return { nome, tem, preco: ORBS_PVP[nome].custo, custo, bloqueado, podePagar: !bloqueado && !divida && saldo >= custo }
+      const doDevil = devil && DOS_DEVIL.includes(nome) && !orbsNaBuild.some(t => normalizar(t) === normalizar(nome))
+      return { nome, tem, doDevil, preco: ORBS_PVP[nome].custo, custo, bloqueado, podePagar: !bloqueado && !divida && saldo >= custo }
     }
 
     // ---- Invasão (Red Eye Orb)
@@ -2617,9 +2638,13 @@
       return { ...o, mult: FORCA_ARRANJADO_TXT[o.forca], orcamento, aposta }
     })
     const pote = minhaAposta + oponentes.reduce((a, o) => a + o.aposta, 0)
-    const premioArr = pote + Math.floor(pote * 0.5)
+    const premioBase = pote + Math.floor(pote * 0.5)
+    // The Devil: +10% sobre os créditos que você receberia. Meio crédito arredonda para cima, como no resto da página.
+    const extraDevil = n => (devil ? arred(n * 0.1) : 0)
+    const bonusArr = extraDevil(premioBase)
+    const premioArr = premioBase + bonusArr
     const arranjado = {
-      minhaAposta, oponentes, pote, premio: premioArr, lucro: premioArr - minhaAposta,
+      minhaAposta, oponentes, pote, premioBase, bonusDevil: bonusArr, premio: premioArr, lucro: premioArr - minhaAposta,
       podeEntrar: !divida && saldo >= minhaAposta, saldoDepois: saldo - minhaAposta,
       azul: orb('Blue Eye Orb'),
       podeDuelo: !divida && saldo >= minhaAposta + (temOrb('Blue Eye Orb') ? 0 : ORBS_PVP['Blue Eye Orb'].custo),
@@ -2630,7 +2655,13 @@
     const E = op.gauntlet.eliminados
     const proximos = []
     for (let e = E; e < E + 5; e++) proximos.push({ eliminados: e, orcamento: Math.ceil(P * (1 + e / 100) - 1e-9) })
-    const gauntlet = { P, eliminados: E, time: op.gauntlet.time, orcamento: proximos[0].orcamento, proximos }
+    // Prêmio em créditos por sobreviver ao Gauntlet: só o One In Ten paga em créditos (200); Fight For Your Right paga um IMG.
+    const opcaoNaBuild = nome => (md.opcoesInt || []).some(L => normalizar(L.nome) === normalizar(nome)) || itens.some(L => normalizar(L.titulo) === normalizar(nome))
+    const premioSobrev = opcaoNaBuild('One In Ten') ? 200 : null
+    const gauntlet = {
+      P, eliminados: E, time: op.gauntlet.time, orcamento: proximos[0].orcamento, proximos,
+      premioSobrev, bonusDevil: premioSobrev != null ? extraDevil(premioSobrev) : 0,
+    }
 
     // ---- Tournament (Black Eye Orb)
     const fator = 1 + op.torneio.bonus / 100
@@ -2646,7 +2677,7 @@
       op, membros, rides, controles, talents, demiplanos, defesas,
       valorRides, ativoTotal, ativoForca, creditValue, tierMaxForca,
       forcaLimitada: membros.some(m => m.conta && !m.naForca),
-      saldo, divida, orbsNaBuild,
+      saldo, divida, orbsNaBuild, devil,
       invasao, branco, arranjado, gauntlet, torneio,
       semPreco: [...controles.itens, ...talents.itens, ...demiplanos.itens, ...defesas.itens, ...rides].filter(x => !x.conhecido).map(x => x.titulo),
     }
